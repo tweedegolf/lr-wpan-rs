@@ -729,7 +729,6 @@ impl From<SecurityError> for byte::Error {
 #[cfg(test)]
 mod tests {
     use aes::Aes128;
-    use rand::Rng;
 
     use crate::wire::{
         frame::{
@@ -815,8 +814,8 @@ mod tests {
     }
 
     fn get_rand_addrpair() -> (u64, Address, Address) {
-        let src_u64: u64 = rand::thread_rng().gen();
-        let dest_u64: u64 = rand::thread_rng().gen();
+        let src_u64: u64 = rand::random();
+        let dest_u64: u64 = rand::random();
         let source = Address::Extended(PanId(0x111), ExtendedAddress(src_u64));
         let destination = Address::Extended(PanId(0x2222), ExtendedAddress(dest_u64));
         (src_u64, source, destination)
