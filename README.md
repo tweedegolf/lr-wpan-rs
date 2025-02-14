@@ -6,7 +6,7 @@
 
 Rust implementation for the IEEE 802.15.4 protocol.
 
-We're just setting this up as an open source project and we're looking funding to work on this implementation.  
+We're just setting this up as an open source project and we're looking for funding to work on this implementation.  
 If you want to see this implementation finished like us, contact us: dion@tweedegolf.com.
 
 Initial development paid for by [Rocsys](https://www.rocsys.com/).
