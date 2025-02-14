@@ -4,7 +4,7 @@
 extern crate alloc;
 extern crate core;
 
-use ieee802154::mac::{ExtendedAddress, ShortAddress};
+use crate::wire::{ExtendedAddress, ShortAddress};
 
 // This must go FIRST so that all the other modules see its macros.
 mod fmt;
@@ -18,6 +18,7 @@ pub mod sap;
 #[cfg(feature = "test_helpers")]
 pub mod test_helpers;
 pub mod time;
+pub mod wire;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceAddress {

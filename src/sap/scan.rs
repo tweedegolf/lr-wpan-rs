@@ -1,8 +1,7 @@
 use arrayvec::ArrayVec;
 
-use crate::ChannelPage;
-
 use super::{ConfirmValue, PanDescriptor, Request, RequestValue, SecurityInfo, Status};
+use crate::ChannelPage;
 
 /// The MLME-SCAN.request primitive is used to initiate a channel scan over a given list of channels
 ///

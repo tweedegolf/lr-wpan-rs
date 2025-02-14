@@ -1,15 +1,17 @@
 use arraydeque::ArrayDeque;
 use arrayvec::ArrayVec;
-use ieee802154::mac::{
-    beacon::{GuaranteedTimeSlotInformation, PendingAddress},
-    security::{default::Unimplemented, SecurityContext},
-    FooterMode, FrameSerDesContext,
-};
 use rand_core::RngCore;
 
-use crate::{sap::SecurityInfo, time::DelayNsExt};
-
 use super::{callback::SendCallback, mlme_scan::ScanProcess, MacConfig};
+use crate::{
+    sap::SecurityInfo,
+    time::DelayNsExt,
+    wire::{
+        beacon::{GuaranteedTimeSlotInformation, PendingAddress},
+        security::{default::Unimplemented, SecurityContext},
+        FooterMode, FrameSerDesContext,
+    },
+};
 
 pub struct MacState<'a> {
     pub message_scheduler: MessageScheduler<'a>,
@@ -54,7 +56,7 @@ impl MacState<'_> {
 
     pub fn serialize_frame(
         &mut self,
-        frame: ieee802154::mac::Frame<'_>,
+        frame: crate::wire::Frame<'_>,
     ) -> ArrayVec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }> {
         use byte::TryWrite;
 
@@ -70,8 +72,8 @@ impl MacState<'_> {
     pub fn deserialize_frame<'data>(
         &mut self,
         data: &'data mut [u8],
-    ) -> Option<ieee802154::mac::Frame<'data>> {
-        match ieee802154::mac::Frame::try_read_and_unsecure(
+    ) -> Option<crate::wire::Frame<'data>> {
+        match crate::wire::Frame::try_read_and_unsecure(
             data,
             &mut self.frame_ser_des_context(),
             &mut Unimplemented,

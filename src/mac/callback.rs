@@ -1,10 +1,9 @@
+use super::{commander::RequestResponder, state::MacState};
 use crate::{
     phy::{Phy, SendResult},
     pib::MacPib,
     sap::start::StartRequest,
 };
-
-use super::{commander::RequestResponder, state::MacState};
 
 /// A callback that will be ran when a message has been sent.
 pub enum SendCallback<'a> {

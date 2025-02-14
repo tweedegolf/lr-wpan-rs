@@ -1,6 +1,5 @@
-use ieee802154::mac::Address;
-
 use super::{ConfirmValue, Request, RequestValue, SecurityInfo, Status};
+use crate::wire::Address;
 
 /// The MLME-POLL.request primitive prompts the device to request data from the coordinator.
 ///

@@ -1,11 +1,11 @@
-use ieee802154::mac::{
-    beacon::{BeaconOrder, SuperframeOrder},
-    PanId,
-};
-
-use crate::ChannelPage;
-
 use super::{ConfirmValue, Request, RequestValue, SecurityInfo, Status};
+use crate::{
+    wire::{
+        beacon::{BeaconOrder, SuperframeOrder},
+        PanId,
+    },
+    ChannelPage,
+};
 
 /// The MLME-START.request primitive is used by the PAN coordinator to initiate a new PAN or to begin
 /// using a new superframe configuration. This primitive is also used by a device already associated with an

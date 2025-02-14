@@ -1,5 +1,4 @@
-use ieee802154::mac::{Frame, FrameContent, PanId};
-
+use super::{commander::RequestResponder, state::MacState, MacHandler};
 use crate::{
     consts::BASE_SUPERFRAME_DURATION,
     phy::Phy,
@@ -10,10 +9,9 @@ use crate::{
         PanDescriptor, SecurityInfo, Status,
     },
     time::{DelayNsExt, Duration, Instant},
+    wire::{Frame, FrameContent, PanId},
     ChannelPage,
 };
-
-use super::{commander::RequestResponder, state::MacState, MacHandler};
 
 pub async fn process_scan_request<'a>(
     phy: &mut impl Phy,

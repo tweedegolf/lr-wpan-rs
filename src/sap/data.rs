@@ -1,13 +1,12 @@
 use arrayvec::ArrayVec;
-use ieee802154::mac::{AddressMode, PanId};
-
-use crate::{
-    time::{Duration, Instant},
-    DeviceAddress,
-};
 
 use super::{
     ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
+};
+use crate::{
+    time::{Duration, Instant},
+    wire::{AddressMode, PanId},
+    DeviceAddress,
 };
 
 /// The MCPS-DATA.request primitive requests the transfer of data to another device.

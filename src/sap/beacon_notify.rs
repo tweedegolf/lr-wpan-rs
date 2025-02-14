@@ -1,9 +1,7 @@
 use arrayvec::ArrayVec;
-use ieee802154::mac::beacon::PendingAddress;
-
-use crate::consts::MAX_BEACON_PAYLOAD_LENGTH;
 
 use super::{Indication, IndicationValue, PanDescriptor};
+use crate::{consts::MAX_BEACON_PAYLOAD_LENGTH, wire::beacon::PendingAddress};
 
 /// The MLME-BEACON-NOTIFY.indication primitive is used to send parameters contained within a beacon
 /// frame received by the MAC sublayer to the next higher layer when either `macAutoRequest` is set to FALSE

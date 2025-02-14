@@ -1,5 +1,6 @@
-use crate::time::{Duration, Instant, TICKS_PER_SECOND};
 use std::sync::OnceLock;
+
+use crate::time::{Duration, Instant, TICKS_PER_SECOND};
 
 static START_TIME: OnceLock<std::time::Instant> = OnceLock::new();
 

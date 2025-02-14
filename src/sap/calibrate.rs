@@ -1,6 +1,5 @@
-use crate::time::Duration;
-
 use super::{ConfirmValue, Request, RequestValue, Status};
+use crate::time::Duration;
 
 /// The MLME-CALIBRATE.request primitive attempts to have the PHY respond with RMARKER offset
 /// information. The MLME-CALIBRATE.request primitive shall be implemented by RDEVs.

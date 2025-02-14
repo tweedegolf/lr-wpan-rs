@@ -7,14 +7,6 @@ use disassociate::{DisassociateConfirm, DisassociateIndication, DisassociateRequ
 use dps::{DpsConfirm, DpsIndication, DpsRequest};
 use get::{GetConfirm, GetRequest};
 use gts::{GtsConfirm, GtsIndication, GtsRequest};
-use ieee802154::mac::{
-    beacon::SuperframeSpecification,
-    security::{
-        AuxiliarySecurityHeader, KeyIdentifier, KeyIdentifierMode, SecurityControl, SecurityError,
-        SecurityLevel,
-    },
-    Address,
-};
 use orphan::{OrphanIndication, OrphanResponse};
 use poll::{PollConfirm, PollRequest};
 use purge::{PurgeConfirm, PurgeRequest};
@@ -26,7 +18,18 @@ use sounding::{SoundingConfirm, SoundingRequest};
 use start::{StartConfirm, StartRequest};
 use sync::{SyncLossIndication, SyncRequest};
 
-use crate::{time::Instant, ChannelPage};
+use crate::{
+    time::Instant,
+    wire::{
+        beacon::SuperframeSpecification,
+        security::{
+            AuxiliarySecurityHeader, KeyIdentifier, KeyIdentifierMode, SecurityControl,
+            SecurityError, SecurityLevel,
+        },
+        Address,
+    },
+    ChannelPage,
+};
 
 pub mod associate;
 pub mod beacon_notify;
@@ -109,11 +112,11 @@ impl SecurityInfo {
         self.security_level != SecurityLevel::None
     }
 
-    pub fn get_frame_version(&self) -> ieee802154::mac::FrameVersion {
+    pub fn get_frame_version(&self) -> crate::wire::FrameVersion {
         if self.has_security() {
-            ieee802154::mac::FrameVersion::Ieee802154_2006
+            crate::wire::FrameVersion::Ieee802154_2006
         } else {
-            ieee802154::mac::FrameVersion::Ieee802154_2003
+            crate::wire::FrameVersion::Ieee802154_2003
         }
     }
 }

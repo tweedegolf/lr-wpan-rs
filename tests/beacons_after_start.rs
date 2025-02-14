@@ -1,12 +1,12 @@
 use std::{fs::File, time::Duration};
 
-use ieee802154::mac::{
-    beacon::{BeaconOrder, SuperframeOrder},
-    FrameType, PanId, ShortAddress,
-};
 use lr_wpan_rs::{
     pib::PibValue,
     sap::{reset::ResetRequest, set::SetRequest, start::StartRequest, SecurityInfo, Status},
+    wire::{
+        beacon::{BeaconOrder, SuperframeOrder},
+        FrameType, PanId, ShortAddress,
+    },
     ChannelPage,
 };
 
@@ -42,8 +42,8 @@ async fn test_beacons_simple_pancoordinator() {
             channel_number: 5,
             channel_page: ChannelPage::Uwb,
             start_time: 0,
-            beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(14),
-            superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(14),
+            beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(14),
+            superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(14),
             pan_coordinator: true,
             battery_life_extension: false,
             coord_realignment: false,
@@ -66,7 +66,7 @@ async fn test_beacons_simple_pancoordinator() {
         assert_eq!(frame.header.frame_type, FrameType::Beacon);
         assert_eq!(
             frame.header.source,
-            Some(ieee802154::mac::Address::Short(
+            Some(lr_wpan_rs::wire::Address::Short(
                 PanId(1234),
                 ShortAddress(0)
             ))
@@ -78,7 +78,7 @@ async fn test_beacons_simple_pancoordinator() {
         seq = Some(frame.header.seq);
 
         match frame.content {
-            ieee802154::mac::FrameContent::Beacon(beacon) => {
+            lr_wpan_rs::wire::FrameContent::Beacon(beacon) => {
                 assert_eq!(
                     beacon.superframe_spec.beacon_order,
                     BeaconOrder::BeaconOrder(14)

@@ -1,7 +1,6 @@
 use std::fs::File;
 
 use futures::FutureExt;
-use ieee802154::mac::{command::Command, Frame, FrameContent, PanId, ShortAddress};
 use lr_wpan_rs::{
     mac::MacCommander,
     pib::PibValue,
@@ -14,9 +13,9 @@ use lr_wpan_rs::{
         IndicationValue, PanDescriptor, SecurityInfo, Status,
     },
     time::Instant,
+    wire::{command::Command, Frame, FrameContent, PanId, ShortAddress},
     ChannelPage,
 };
-
 use test_log::test;
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
@@ -48,12 +47,12 @@ async fn scan_passive() {
     pretty_assertions::assert_eq!(
         scan_confirm.pan_descriptor_list[0],
         PanDescriptor {
-            coord_address: ieee802154::mac::Address::Short(PanId(0), ShortAddress(0)),
+            coord_address: lr_wpan_rs::wire::Address::Short(PanId(0), ShortAddress(0)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
-            super_frame_spec: ieee802154::mac::beacon::SuperframeSpecification {
-                beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(10),
-                superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(10),
+            super_frame_spec: lr_wpan_rs::wire::beacon::SuperframeSpecification {
+                beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(10),
+                superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(10),
                 final_cap_slot: 0,
                 battery_life_extension: false,
                 pan_coordinator: true,
@@ -70,12 +69,12 @@ async fn scan_passive() {
     pretty_assertions::assert_eq!(
         scan_confirm.pan_descriptor_list[1],
         PanDescriptor {
-            coord_address: ieee802154::mac::Address::Short(PanId(1), ShortAddress(1)),
+            coord_address: lr_wpan_rs::wire::Address::Short(PanId(1), ShortAddress(1)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
-            super_frame_spec: ieee802154::mac::beacon::SuperframeSpecification {
-                beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(10),
-                superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(10),
+            super_frame_spec: lr_wpan_rs::wire::beacon::SuperframeSpecification {
+                beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(10),
+                superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(10),
                 final_cap_slot: 0,
                 battery_life_extension: false,
                 pan_coordinator: true,
@@ -127,12 +126,12 @@ async fn scan_active() {
     pretty_assertions::assert_eq!(
         scan_confirm.pan_descriptor_list[0],
         PanDescriptor {
-            coord_address: ieee802154::mac::Address::Short(PanId(0), ShortAddress(0)),
+            coord_address: lr_wpan_rs::wire::Address::Short(PanId(0), ShortAddress(0)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
-            super_frame_spec: ieee802154::mac::beacon::SuperframeSpecification {
-                beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(10),
-                superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(10),
+            super_frame_spec: lr_wpan_rs::wire::beacon::SuperframeSpecification {
+                beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(10),
+                superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(10),
                 final_cap_slot: 0,
                 battery_life_extension: false,
                 pan_coordinator: true,
@@ -149,12 +148,12 @@ async fn scan_active() {
     pretty_assertions::assert_eq!(
         scan_confirm.pan_descriptor_list[1],
         PanDescriptor {
-            coord_address: ieee802154::mac::Address::Short(PanId(1), ShortAddress(1)),
+            coord_address: lr_wpan_rs::wire::Address::Short(PanId(1), ShortAddress(1)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
-            super_frame_spec: ieee802154::mac::beacon::SuperframeSpecification {
-                beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(10),
-                superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(10),
+            super_frame_spec: lr_wpan_rs::wire::beacon::SuperframeSpecification {
+                beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(10),
+                superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(10),
                 final_cap_slot: 0,
                 battery_life_extension: false,
                 pan_coordinator: true,
@@ -237,8 +236,8 @@ async fn start_beacon(commander: &MacCommander, id: u16) {
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
             start_time: 0,
-            beacon_order: ieee802154::mac::beacon::BeaconOrder::BeaconOrder(10),
-            superframe_order: ieee802154::mac::beacon::SuperframeOrder::SuperframeOrder(10),
+            beacon_order: lr_wpan_rs::wire::beacon::BeaconOrder::BeaconOrder(10),
+            superframe_order: lr_wpan_rs::wire::beacon::SuperframeOrder::SuperframeOrder(10),
             pan_coordinator: true,
             battery_life_extension: false,
             coord_realignment: false,

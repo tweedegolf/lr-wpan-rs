@@ -1,3 +1,4 @@
+use super::{commander::RequestResponder, MacError};
 use crate::{
     phy::Phy,
     pib::{MacPib, PibValue},
@@ -6,8 +7,6 @@ use crate::{
         Status,
     },
 };
-
-use super::{commander::RequestResponder, MacError};
 
 pub async fn process_get_request(
     phy: &mut impl Phy,

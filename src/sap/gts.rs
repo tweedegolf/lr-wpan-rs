@@ -1,8 +1,7 @@
-use ieee802154::mac::{command::GuaranteedTimeSlotCharacteristics, ShortAddress};
-
 use super::{
     ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
 };
+use crate::wire::{command::GuaranteedTimeSlotCharacteristics, ShortAddress};
 
 /// The MLME-GTS.request primitive allows a device to send a request to the PAN coordinator to allocate a
 /// new GTS or to deallocate an existing GTS. This primitive is also used by the PAN coordinator to initiate a

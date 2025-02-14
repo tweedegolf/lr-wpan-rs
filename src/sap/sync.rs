@@ -1,6 +1,5 @@
-use ieee802154::mac::PanId;
-
 use super::{Indication, IndicationValue, Request, RequestValue, SecurityInfo};
+use crate::wire::PanId;
 
 /// The MLME-SYNC.request primitive requests to synchronize with the coordinator by acquiring and, if
 /// specified, tracking its beacons.

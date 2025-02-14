@@ -1,6 +1,5 @@
-use crate::time::Duration;
-
 use super::{ConfirmValue, Indication, IndicationValue, Request, RequestValue, Status};
+use crate::time::Duration;
 
 /// The MLME-DPS.request primitive allows the next higher layer to request that the PHY utilize a given pair
 /// of preamble codes for a single use pending expiration of the DPSIndexDuration.

@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use ieee802154::mac::ExtendedAddress;
 use rand::{rngs::StdRng, SeedableRng};
 use tokio::task::AbortHandle;
 
-use crate::mac::{MacCommander, MacConfig};
-
 use super::aether::Aether;
+use crate::{
+    mac::{MacCommander, MacConfig},
+    wire::ExtendedAddress,
+};
 
 /// Run a single mac engine
 pub fn run_mac_engine_simple() -> Runner {

@@ -1,9 +1,13 @@
-use crate::phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult};
-use crate::pib::{PhyPib, PhyPibWrite};
-use crate::test_helpers::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId};
-use crate::time::Instant;
 use std::sync::{Arc, Mutex, MutexGuard};
+
 use tokio::sync::mpsc::Receiver;
+
+use crate::{
+    phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
+    pib::{PhyPib, PhyPibWrite},
+    test_helpers::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId},
+    time::Instant,
+};
 
 /// Single radio connected to an [`Aether`]
 #[derive(Debug)]

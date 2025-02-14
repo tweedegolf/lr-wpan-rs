@@ -1,11 +1,10 @@
-use ieee802154::mac::{
-    command::{AssociationStatus, CapabilityInformation},
-    Address, ExtendedAddress, ShortAddress,
-};
-
 use super::{
     ConfirmValue, Indication, IndicationValue, Request, RequestValue, ResponseValue, SecurityInfo,
     Status,
+};
+use crate::wire::{
+    command::{AssociationStatus, CapabilityInformation},
+    Address, ExtendedAddress, ShortAddress,
 };
 
 /// The MLME-ASSOCIATE.request primitive is used by a device to request an association with a coordinator.

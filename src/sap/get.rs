@@ -1,6 +1,5 @@
-use crate::pib::PibValue;
-
 use super::{ConfirmValue, Request, RequestValue, Status};
+use crate::pib::PibValue;
 
 /// The MLME-GET.request primitive requests information about a given PIB attribute.
 ///

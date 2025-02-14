@@ -1,6 +1,5 @@
-use crate::time::{Duration, Instant};
-
 use super::{ConfirmValue, Request, RequestValue, Status};
+use crate::time::{Duration, Instant};
 
 /// The MLME-RX-ENABLE.request primitive allows the next higher layer to request that the receiver is either
 /// enabled for a finite period of time or disabled.

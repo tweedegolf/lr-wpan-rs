@@ -1,11 +1,12 @@
 use core::num::{NonZero, NonZeroU32};
 
-use ieee802154::mac::beacon::{BeaconOrder, SuperframeOrder};
-use ieee802154::mac::{ExtendedAddress, PanId, ShortAddress};
-
 use crate::{
     consts::{MAX_BEACON_PAYLOAD_LENGTH, TURNAROUND_TIME, UNIT_BACKOFF_PERIOD},
     sap::Status,
+    wire::{
+        beacon::{BeaconOrder, SuperframeOrder},
+        ExtendedAddress, PanId, ShortAddress,
+    },
     ChannelPage,
 };
 

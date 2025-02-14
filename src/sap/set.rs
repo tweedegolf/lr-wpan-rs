@@ -1,6 +1,5 @@
-use crate::pib::PibValue;
-
 use super::{ConfirmValue, Request, RequestValue, Status};
+use crate::pib::PibValue;
 
 /// The MLME-SET.request primitive attempts to write the given value to the indicated PIB attribute.
 ///

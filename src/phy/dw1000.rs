@@ -1,5 +1,6 @@
 use core::fmt::{Debug, Display};
 
+pub use dw1000;
 use dw1000::{
     configs::PulseRepetitionFrequency, AutoDoubleBufferReceiving, Ready, RxConfig, TxConfig,
 };
@@ -9,6 +10,7 @@ use embedded_hal_async::{delay::DelayNs, digital::Wait};
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
+use super::{ModulationType, Phy, ReceivedMessage};
 use crate::{
     phy::SendContinuation,
     pib::{
@@ -18,10 +20,6 @@ use crate::{
     time::{Duration, Instant},
     ChannelPage,
 };
-
-use super::{ModulationType, Phy, ReceivedMessage};
-
-pub use dw1000;
 
 const TIME_CHECK_INTERVAL_MILLIS: u32 = 5000;
 const TIME_CHECK_MILLIS_PER_DELAY: u32 = 100;

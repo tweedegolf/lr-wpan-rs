@@ -20,7 +20,6 @@ use commander::MacHandler;
 pub use commander::{IndicationResponder, MacCommander};
 use embassy_futures::select::{select, Either};
 use futures::FutureExt;
-use ieee802154::mac::{ExtendedAddress, Frame, FrameContent, PanId, ShortAddress};
 use mlme_get::process_get_request;
 use mlme_reset::process_reset_request;
 use mlme_scan::{process_scan_request, ScanAction};
@@ -28,6 +27,8 @@ use mlme_set::process_set_request;
 use mlme_start::process_start_request;
 use rand_core::RngCore;
 use state::{BeaconMode, MacState};
+
+use crate::wire::{ExtendedAddress, Frame, FrameContent, PanId, ShortAddress};
 
 const BEACON_PLANNING_HEADROOM: Duration = Duration::from_millis(20);
 
@@ -257,7 +258,7 @@ async fn perform_scan_action(
     mac_state: &mut MacState<'_>,
     mac_pib: &mut MacPib,
 ) {
-    use ieee802154::mac;
+    use crate::wire;
 
     match scan_action {
         action @ ScanAction::StartScan {
@@ -293,24 +294,24 @@ async fn perform_scan_action(
                     }
                     ScanType::Active => {
                         let data = mac_state.serialize_frame(Frame {
-                            header: mac::Header {
-                                frame_type: mac::FrameType::MacCommand,
+                            header: wire::Header {
+                                frame_type: wire::FrameType::MacCommand,
                                 frame_pending: false,
                                 ack_request: false,
                                 pan_id_compress: false,
                                 seq_no_suppress: false,
                                 ie_present: false,
-                                version: mac::FrameVersion::Ieee802154_2003,
+                                version: wire::FrameVersion::Ieee802154_2003,
                                 seq: 0,
-                                destination: Some(mac::Address::Short(
+                                destination: Some(wire::Address::Short(
                                     PanId::broadcast(),
                                     ShortAddress::BROADCAST,
                                 )),
                                 source: None,
                                 auxiliary_security_header: None,
                             },
-                            content: mac::FrameContent::Command(
-                                mac::command::Command::BeaconRequest,
+                            content: wire::FrameContent::Command(
+                                wire::command::Command::BeaconRequest,
                             ),
                             payload: &[],
                             footer: [0, 0],
@@ -395,13 +396,13 @@ async fn own_superframe_start(
     phy: &mut impl Phy,
     start_time: Instant,
 ) {
-    use ieee802154::mac;
+    use crate::wire;
 
     let has_broadcast_scheduled = mac_state.message_scheduler.has_broadcast_scheduled();
     mac_state.own_superframe_active = true;
-    let beacon_frame = mac::Frame {
-        header: mac::Header {
-            frame_type: mac::FrameType::Beacon,
+    let beacon_frame = wire::Frame {
+        header: wire::Header {
+            frame_type: wire::FrameType::Beacon,
             frame_pending: has_broadcast_scheduled,
             ack_request: false,
             pan_id_compress: false,
@@ -411,14 +412,14 @@ async fn own_superframe_start(
             seq: mac_pib.bsn.increment(),
             destination: None,
             source: Some(if mac_pib.short_address == ShortAddress(0xFFFE) {
-                mac::Address::Extended(mac_pib.pan_id, mac_pib.extended_address)
+                wire::Address::Extended(mac_pib.pan_id, mac_pib.extended_address)
             } else {
-                mac::Address::Short(mac_pib.pan_id, mac_pib.short_address)
+                wire::Address::Short(mac_pib.pan_id, mac_pib.short_address)
             }),
             auxiliary_security_header: mac_state.beacon_security_info.into(),
         },
-        content: mac::FrameContent::Beacon(mac::beacon::Beacon {
-            superframe_spec: mac::beacon::SuperframeSpecification {
+        content: wire::FrameContent::Beacon(wire::beacon::Beacon {
+            superframe_spec: wire::beacon::SuperframeSpecification {
                 beacon_order: mac_pib.beacon_order,
                 superframe_order: mac_pib.superframe_order,
                 final_cap_slot: (crate::consts::NUM_SUPERFRAME_SLOTS

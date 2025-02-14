@@ -1,8 +1,5 @@
-use ieee802154::mac::PanId;
-
-use crate::DeviceAddress;
-
 use super::{Indication, IndicationValue, SecurityInfo, Status};
+use crate::{wire::PanId, DeviceAddress};
 
 /// The MLME-COMM-STATUS.indication primitive allows the MLME to indicate a communications status.
 ///

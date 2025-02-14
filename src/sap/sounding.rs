@@ -1,5 +1,6 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
 use alloc::vec::Vec;
+
+use super::{ConfirmValue, Request, RequestValue, Status};
 
 /// The MLME-SOUNDING.request primitive is used by the next higher layer to request that the PHY respond
 /// with channel sounding information. The MLME-SOUNDING.request primitive shall be supported by all

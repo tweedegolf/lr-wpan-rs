@@ -1,6 +1,8 @@
-use ieee802154::mac::beacon::{BeaconOrder, SuperframeOrder};
-use ieee802154::mac::ShortAddress;
-
+use super::{
+    commander::RequestResponder,
+    state::{BeaconMode, MacState},
+    MacError,
+};
 use crate::{
     consts,
     mac::callback::SendCallback,
@@ -10,12 +12,10 @@ use crate::{
         start::{StartConfirm, StartRequest},
         Status,
     },
-};
-
-use super::{
-    commander::RequestResponder,
-    state::{BeaconMode, MacState},
-    MacError,
+    wire::{
+        beacon::{BeaconOrder, SuperframeOrder},
+        ShortAddress,
+    },
 };
 
 pub async fn process_start_request<'a>(
@@ -44,7 +44,7 @@ pub async fn process_start_request<'a>(
     }
 
     if responder.request.coord_realignment {
-        use ieee802154::mac::{
+        use crate::wire::{
             command::{Command, CoordinatorRealignmentData},
             Address, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
         };

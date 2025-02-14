@@ -34,25 +34,36 @@
 //! # });
 //! ```
 
-use crate::pib::PhyPib;
-use crate::time::{Duration, Instant};
 use alloc::borrow::Cow;
+use core::fmt::Debug;
+use std::{
+    collections::HashMap,
+    fs::File,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
+};
+
 use arrayvec::ArrayVec;
 use byte::TryRead;
-use core::fmt::Debug;
-use ieee802154::mac::Frame;
-use pcap_file::pcapng::blocks::enhanced_packet::EnhancedPacketBlock;
-use pcap_file::pcapng::blocks::interface_description::{
-    InterfaceDescriptionBlock, InterfaceDescriptionOption,
+use pcap_file::{
+    pcapng::{
+        blocks::{
+            enhanced_packet::EnhancedPacketBlock,
+            interface_description::{InterfaceDescriptionBlock, InterfaceDescriptionOption},
+        },
+        Block, PcapNgReader, PcapNgWriter,
+    },
+    DataLink,
 };
-use pcap_file::pcapng::{Block, PcapNgReader, PcapNgWriter};
-use pcap_file::DataLink;
-use std::collections::HashMap;
-use std::fs::File;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
-use tokio::sync::mpsc::error::TrySendError;
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::{channel, error::TrySendError, Sender};
+
+use crate::{
+    pib::PhyPib,
+    time::{Duration, Instant},
+    wire::Frame,
+};
 
 mod radio;
 mod space_time;
@@ -147,7 +158,7 @@ impl Aether {
                         return Some(
                             Frame::try_read(
                                 enhanced_packet_block.data.to_vec().leak(),
-                                ieee802154::mac::FooterMode::None,
+                                crate::wire::FooterMode::None,
                             )
                             .unwrap()
                             .0,
@@ -308,16 +319,23 @@ impl AirPacket {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::phy::{Phy, ReceivedMessage, SendContinuation, SendResult};
     use byte::TryWrite;
-    use ieee802154::mac;
-    use ieee802154::mac::beacon::BeaconOrder::BeaconOrder;
-    use ieee802154::mac::beacon::{GuaranteedTimeSlotInformation, PendingAddress, SuperframeOrder};
-    use ieee802154::mac::security::default::Unimplemented;
-    use ieee802154::mac::{FooterMode, FrameVersion};
     use pcap_file::pcapng::PcapNgReader;
     use tokio::time::timeout;
+
+    use super::*;
+    use crate::{
+        phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
+        wire,
+        wire::{
+            beacon::{
+                BeaconOrder::BeaconOrder, GuaranteedTimeSlotInformation, PendingAddress,
+                SuperframeOrder,
+            },
+            security::default::Unimplemented,
+            FooterMode, FrameVersion,
+        },
+    };
 
     async fn receive_one(bob: &mut AetherRadio) -> ReceivedMessage {
         let (tx, mut rx) = channel(1);
@@ -401,9 +419,9 @@ mod tests {
 
     #[tokio::test]
     async fn log_beacon() {
-        let beacon_frame = mac::Frame {
-            header: mac::Header {
-                frame_type: mac::FrameType::Beacon,
+        let beacon_frame = wire::Frame {
+            header: wire::Header {
+                frame_type: wire::FrameType::Beacon,
                 frame_pending: true,
                 ack_request: false,
                 pan_id_compress: false,
@@ -415,8 +433,8 @@ mod tests {
                 source: None,
                 auxiliary_security_header: None,
             },
-            content: mac::FrameContent::Beacon(mac::beacon::Beacon {
-                superframe_spec: mac::beacon::SuperframeSpecification {
+            content: wire::FrameContent::Beacon(wire::beacon::Beacon {
+                superframe_spec: wire::beacon::SuperframeSpecification {
                     beacon_order: BeaconOrder(0),
                     superframe_order: SuperframeOrder::Inactive,
                     final_cap_slot: 5,
@@ -438,7 +456,7 @@ mod tests {
             let mut bob = a.radio();
 
             let mut buffer = ArrayVec::from([0; crate::consts::MAX_PHY_PACKET_SIZE]);
-            let mut ctx = mac::FrameSerDesContext::<Unimplemented, Unimplemented>::new(
+            let mut ctx = wire::FrameSerDesContext::<Unimplemented, Unimplemented>::new(
                 FooterMode::None,
                 None,
             );

@@ -1,19 +1,19 @@
+#[allow(unused_imports)]
+use micromath::F32Ext;
+use rand_core::RngCore;
+
+use super::{commander::RequestResponder, state::MacState, MacConfig, MacError};
 use crate::{
     consts::MAX_BEACON_PAYLOAD_LENGTH,
     phy::Phy,
     pib::{MacPib, MacPibWrite, SequenceNumber},
     sap::reset::{ResetConfirm, ResetRequest},
     time::DelayNsExt,
+    wire::{
+        beacon::{BeaconOrder, SuperframeOrder},
+        ExtendedAddress, PanId, ShortAddress,
+    },
 };
-
-use super::{commander::RequestResponder, state::MacState, MacConfig, MacError};
-use ieee802154::mac::{
-    beacon::{BeaconOrder, SuperframeOrder},
-    ExtendedAddress, PanId, ShortAddress,
-};
-#[allow(unused_imports)]
-use micromath::F32Ext;
-use rand_core::RngCore;
 
 pub async fn process_reset_request<P: Phy, Rng: RngCore, Delay: DelayNsExt>(
     phy: &mut P,
