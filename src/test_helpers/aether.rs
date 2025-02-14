@@ -4,9 +4,9 @@
 //!
 //! # Example
 //! ```
-//! use ieee_802_15_4_mac::phy::{Phy, SendContinuation, SendResult};
-//! use ieee_802_15_4_mac::test_helpers::aether::{Aether, Coordinate, Meters};
-//! use ieee_802_15_4_mac::time::Duration;
+//! use lr_wpan_rs::phy::{Phy, SendContinuation, SendResult};
+//! use lr_wpan_rs::test_helpers::aether::{Aether, Coordinate, Meters};
+//! use lr_wpan_rs::time::Duration;
 //!
 //! # tokio::runtime::Builder::new_current_thread().enable_time().start_paused(true).build().unwrap().block_on(async {
 //! let mut aether = Aether::new();

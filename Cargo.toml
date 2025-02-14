@@ -1,7 +1,12 @@
 [package]
-name = "ieee-802_15_4-mac"
+name = "lr-wpan-rs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Rust implementation for the IEEE 802.15.4 protocol"
+homepage = "https://github.com/tweedegolf/lr-wpan-rs"
+repository = "https://github.com/tweedegolf/lr-wpan-rs"
+readme = "README.md"
 
 [dependencies]
 embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-stm32-v0.2.0", default-features = false }

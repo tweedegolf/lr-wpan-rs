@@ -1,4 +1,4 @@
-use ieee_802_15_4_mac::{
+use lr_wpan_rs::{
     mac::MacCommander,
     pib::PibValue,
     sap::{get::GetRequest, set::SetRequest, Status},
@@ -6,7 +6,7 @@ use ieee_802_15_4_mac::{
 
 #[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn get_set() {
-    let runner = ieee_802_15_4_mac::test_helpers::run::run_mac_engine_simple();
+    let runner = lr_wpan_rs::test_helpers::run::run_mac_engine_simple();
 
     test_get(runner.commander).await;
     test_set(runner.commander).await;

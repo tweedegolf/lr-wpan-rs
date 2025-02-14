@@ -4,7 +4,7 @@ use ieee802154::mac::{
     beacon::{BeaconOrder, SuperframeOrder},
     FrameType, PanId, ShortAddress,
 };
-use ieee_802_15_4_mac::{
+use lr_wpan_rs::{
     pib::PibValue,
     sap::{reset::ResetRequest, set::SetRequest, start::StartRequest, SecurityInfo, Status},
     ChannelPage,
@@ -12,7 +12,7 @@ use ieee_802_15_4_mac::{
 
 #[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn test_beacons_simple_pancoordinator() {
-    let mut runner = ieee_802_15_4_mac::test_helpers::run::run_mac_engine_simple();
+    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_simple();
 
     runner
         .aether

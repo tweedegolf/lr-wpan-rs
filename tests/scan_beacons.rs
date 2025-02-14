@@ -2,7 +2,7 @@ use std::fs::File;
 
 use futures::FutureExt;
 use ieee802154::mac::{command::Command, Frame, FrameContent, PanId, ShortAddress};
-use ieee_802_15_4_mac::{
+use lr_wpan_rs::{
     mac::MacCommander,
     pib::PibValue,
     sap::{
@@ -21,7 +21,7 @@ use test_log::test;
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_passive() {
-    let mut runner = ieee_802_15_4_mac::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
     runner
         .aether
@@ -93,7 +93,7 @@ async fn scan_passive() {
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_active() {
-    let mut runner = ieee_802_15_4_mac::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
     runner
         .aether
@@ -172,7 +172,7 @@ async fn scan_active() {
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_passive_no_auto_request() {
-    let mut runner = ieee_802_15_4_mac::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
     runner
         .aether
