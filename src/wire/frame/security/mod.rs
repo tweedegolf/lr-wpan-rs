@@ -294,15 +294,11 @@ impl SecurityContext<Unimplemented, Unimplemented> {
 
 fn calculate_nonce(source_addr: u64, frame_counter: u32, sec_level: SecurityLevel) -> [u8; 13] {
     let mut output = [0u8; 13];
-    for i in 0..8 {
-        output[i] = (source_addr >> (8 * i) & 0xFF) as u8;
-    }
 
-    for i in 0..4 {
-        output[i + 8] = (frame_counter >> (8 * i) & 0xFF) as u8;
-    }
-
+    output[0..8].copy_from_slice(&source_addr.to_le_bytes());
+    output[8..12].copy_from_slice(&frame_counter.to_le_bytes());
     output[12] = sec_level.to_bits();
+
     output
 }
 
@@ -317,7 +313,7 @@ fn calculate_nonce(source_addr: u64, frame_counter: u32, sec_level: SecurityLeve
 ///
 /// # Panics
 /// if footer_mode is not None due to currently absent implementation of explicit footers
-pub(crate) fn secure_frame<'a, AEADBLKCIPH, KEYDESCLO>(
+pub(crate) fn secure_frame<AEADBLKCIPH, KEYDESCLO>(
     frame: Frame<'_>,
     context: &mut SecurityContext<AEADBLKCIPH, KEYDESCLO>,
     footer_mode: FooterMode,
@@ -338,7 +334,7 @@ where
         }
     }
 
-    let mut offset = 0 as usize;
+    let mut offset = 0_usize;
     let header = frame.header;
 
     if header.has_security() {
@@ -358,9 +354,7 @@ where
 
             // If frame size plus AuthLen plus AuxLen plus FCS is bigger than aMaxPHYPacketSize
             // 7.2.1b4
-            if !(frame.payload.len() + frame.header.get_octet_size() + aux_len + auth_len + 2
-                <= 127)
-            {
+            if frame.payload.len() + frame.header.get_octet_size() + aux_len + auth_len + 2 > 127 {
                 return Err(SecurityError::FrameTooLong);
             }
 
@@ -451,15 +445,15 @@ where
                     #[allow(unreachable_patterns)]
                     _ => {}
                 };
-                return Ok(offset);
+                Ok(offset)
             } else {
-                return Err(SecurityError::UnavailableKey);
+                Err(SecurityError::UnavailableKey)
             }
         } else {
-            return Err(SecurityError::AuxSecHeaderAbsent);
+            Err(SecurityError::AuxSecHeaderAbsent)
         }
     } else {
-        return Err(SecurityError::SecurityNotEnabled);
+        Err(SecurityError::SecurityNotEnabled)
     }
 }
 
@@ -479,7 +473,7 @@ where
 ///
 /// # Panics
 /// if footer_mode is not None due to currently absent implementation of explicit footers
-pub(crate) fn unsecure_frame<'a, AEADBLKCIPH, KEYDESCLO, DEVDESCLO>(
+pub(crate) fn unsecure_frame<AEADBLKCIPH, KEYDESCLO, DEVDESCLO>(
     header: &Header,
     buffer: &mut [u8],
     context: &mut SecurityContext<AEADBLKCIPH, KEYDESCLO>,
@@ -618,9 +612,9 @@ where
         } else {
             return Err(SecurityError::UnavailableKey);
         }
-        return Ok(taglen);
+        Ok(taglen)
     } else {
-        return Err(SecurityError::SecurityNotEnabled);
+        Err(SecurityError::SecurityNotEnabled)
     }
 }
 
@@ -774,7 +768,7 @@ mod tests {
         }
     }
 
-    impl<'a> DeviceDescriptorLookup for BasicDevDescriptorLookup<'a> {
+    impl DeviceDescriptorLookup for BasicDevDescriptorLookup<'_> {
         fn lookup_device(
             &mut self,
             _addressing_mode: AddressingMode,
@@ -787,19 +781,19 @@ mod tests {
     const STATIC_KEY_LOOKUP: StaticKeyLookup = StaticKeyLookup();
     const FRAME_CTR: u32 = 0x03030303;
 
-    fn aes_sec_ctx<'a>(
+    fn aes_sec_ctx(
         source_euid: u64,
         frame_counter: u32,
     ) -> SecurityContext<Aes128, StaticKeyLookup> {
         SecurityContext::new(source_euid, frame_counter, STATIC_KEY_LOOKUP)
     }
 
-    fn get_frame<'a>(
+    fn get_frame(
         source: Option<Address>,
         destination: Option<Address>,
-        payload: &'a [u8],
+        payload: &[u8],
         auxiliary_security_header: Option<AuxiliarySecurityHeader>,
-    ) -> Frame<'a> {
+    ) -> Frame<'_> {
         Frame {
             header: Header {
                 ie_present: false,
@@ -976,7 +970,7 @@ mod tests {
         let plaintext_payload = &mut [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
         let plaintext_len = plaintext_payload.len();
 
-        let plaintext_clone = plaintext_payload.clone();
+        let plaintext_clone = *plaintext_payload;
 
         let frame = get_frame(
             Some(source),
@@ -988,15 +982,18 @@ mod tests {
         let mut buf = [0u8; 127];
         let mut sec_ctx = aes_sec_ctx(source_euid, FRAME_CTR);
 
-        match frame.clone().try_write(
-            &mut buf,
-            &mut FrameSerDesContext::no_security(FooterMode::None),
-        ) {
-            Ok(_) => assert!(
+        if frame
+            .clone()
+            .try_write(
+                &mut buf,
+                &mut FrameSerDesContext::no_security(FooterMode::None),
+            )
+            .is_ok()
+        {
+            assert!(
                 false,
                 "Successfully wrote frame with security enabled, but missing security context!"
-            ),
-            Err(_) => {}
+            )
         }
 
         let len = match frame.try_write(
@@ -1109,7 +1106,7 @@ mod tests {
         };
 
         // Assert that the length is correct (header field lengths, etc)
-        assert_eq!(len, 2 + 1 + 2 + 8 + 2 + 8 + 1 + 4 + 0 + plaintext_len + 16);
+        assert_eq!(len, (2 + 1 + 2 + 8 + 2 + 8 + 1 + 4) + plaintext_len + 16);
         let buf = &mut buf[..len];
 
         //

@@ -110,7 +110,7 @@ impl SecurityLevel {
         }
     }
 
-    pub(crate) fn to_bits(&self) -> u8 {
+    pub(crate) fn to_bits(self) -> u8 {
         match self {
             SecurityLevel::None => 0b000,
             SecurityLevel::MIC32 => 0b001,
@@ -159,7 +159,7 @@ impl KeyIdentifierMode {
             _ => None,
         }
     }
-    fn to_bits(&self) -> u8 {
+    fn to_bits(self) -> u8 {
         match self {
             KeyIdentifierMode::None => 0b00,
             KeyIdentifierMode::KeyIndex => 0b01,

@@ -86,18 +86,13 @@ impl Header {
         // Frame control + sequence number
         let mut len = 3;
 
-        for i in [self.destination, self.source].iter() {
-            match i {
-                Some(addr) => {
-                    // pan ID
-                    len += 2;
-                    // Address length
-                    match addr {
-                        Address::Short(..) => len += 2,
-                        Address::Extended(..) => len += 8,
-                    }
-                }
-                _ => {}
+        for addr in [self.destination, self.source].iter().flatten() {
+            // pan ID
+            len += 2;
+            // Address length
+            match addr {
+                Address::Short(..) => len += 2,
+                Address::Extended(..) => len += 8,
             }
         }
         len
@@ -113,7 +108,7 @@ impl TryRead<'_> for Header {
     fn try_read(bytes: &[u8], _ctx: ()) -> byte::Result<(Self, usize)> {
         let offset = &mut 0;
         // Make sure we have enough buffer for the Frame Control field
-        check_len(&bytes, 3)?;
+        check_len(bytes, 3)?;
 
         /* Decode Frame Control Field */
         let bits: u16 = bytes.read_with(offset, LE)?;
@@ -230,14 +225,14 @@ where
 
         let security = self.auxiliary_security_header.is_some();
 
-        let frame_control_raw = (self.frame_type as u16) << offset::FRAME_TYPE
-            | (security as u16) << offset::SECURITY
-            | (self.frame_pending as u16) << offset::PENDING
-            | (self.ack_request as u16) << offset::ACK
-            | (self.pan_id_compress as u16) << offset::PAN_ID_COMPRESS
-            | (dest_addr_mode as u16) << offset::DEST_ADDR_MODE
-            | (self.version as u16) << offset::VERSION
-            | (src_addr_mode as u16) << offset::SRC_ADDR_MODE;
+        let frame_control_raw = ((self.frame_type as u16) << offset::FRAME_TYPE)
+            | ((security as u16) << offset::SECURITY)
+            | ((self.frame_pending as u16) << offset::PENDING)
+            | ((self.ack_request as u16) << offset::ACK)
+            | ((self.pan_id_compress as u16) << offset::PAN_ID_COMPRESS)
+            | ((dest_addr_mode as u16) << offset::DEST_ADDR_MODE)
+            | ((self.version as u16) << offset::VERSION)
+            | ((src_addr_mode as u16) << offset::SRC_ADDR_MODE);
 
         bytes.write_with(offset, frame_control_raw, LE)?;
 

@@ -102,7 +102,7 @@ const ASSOCIATION_PERMIT: u8 = 0b1000_0000;
 impl TryRead<'_> for SuperframeSpecification {
     fn try_read(bytes: &[u8], _ctx: ()) -> byte::Result<(Self, usize)> {
         let offset = &mut 0;
-        check_len(&bytes, 2)?;
+        check_len(bytes, 2)?;
         let byte: u8 = bytes.read(offset)?;
         let beacon_order = BeaconOrder::from(byte & 0x0f);
         let superframe_order = SuperframeOrder::from((byte >> 4) & 0x0f);
@@ -128,8 +128,8 @@ impl TryRead<'_> for SuperframeSpecification {
 impl TryWrite for SuperframeSpecification {
     fn try_write(self, bytes: &mut [u8], _ctx: ()) -> byte::Result<usize> {
         let offset = &mut 0;
-        let bo = u8::from(self.beacon_order.clone());
-        let so = u8::from(self.superframe_order.clone());
+        let bo = u8::from(self.beacon_order);
+        let so = u8::from(self.superframe_order);
         bytes.write(offset, (bo & 0x0f) | (so << 4))?;
         let ble = if self.battery_life_extension {
             BATTERY_LIFE_EXTENSION
@@ -175,6 +175,12 @@ pub struct GuaranteedTimeSlotDescriptor {
     pub direction: Direction,
 }
 
+impl Default for GuaranteedTimeSlotDescriptor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GuaranteedTimeSlotDescriptor {
     /// Create a new empty slot
     pub fn new() -> Self {
@@ -190,7 +196,7 @@ impl GuaranteedTimeSlotDescriptor {
 impl TryRead<'_> for GuaranteedTimeSlotDescriptor {
     fn try_read(bytes: &[u8], _ctx: ()) -> byte::Result<(Self, usize)> {
         let offset = &mut 0;
-        check_len(&bytes, 3)?;
+        check_len(bytes, 3)?;
         let short_address = bytes.read(offset)?;
         let byte: u8 = bytes.read(offset)?;
         let starting_slot = byte & 0x0f;
@@ -212,7 +218,7 @@ impl TryWrite for GuaranteedTimeSlotDescriptor {
     fn try_write(self, bytes: &mut [u8], _ctx: ()) -> byte::Result<usize> {
         let offset = &mut 0;
         bytes.write(offset, self.short_address)?;
-        bytes.write(offset, self.starting_slot | self.length << 4)?;
+        bytes.write(offset, self.starting_slot | (self.length << 4))?;
         Ok(*offset)
     }
 }
@@ -239,6 +245,12 @@ pub struct GuaranteedTimeSlotInformation {
     pub permit: bool,
     /// Time slot information
     pub slots: heapless::Vec<GuaranteedTimeSlotDescriptor, 7>,
+}
+
+impl Default for GuaranteedTimeSlotInformation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GuaranteedTimeSlotInformation {
@@ -271,9 +283,9 @@ impl TryWrite for GuaranteedTimeSlotInformation {
                 let mut direction_mask = 0u8;
                 for slot in &self.slots {
                     if slot.direction_transmit() {
-                        direction_mask = direction_mask | dir;
+                        direction_mask |= dir;
                     }
-                    dir = dir << 1;
+                    dir <<= 1;
                 }
                 direction_mask
             };
@@ -307,7 +319,7 @@ impl TryRead<'_> for GuaranteedTimeSlotInformation {
                     Direction::Receive
                 };
                 slot.set_direction(direction);
-                direction_mask = direction_mask >> 1;
+                direction_mask >>= 1;
                 slots
                     .push(slot)
                     .expect("slot_count can never be larger than Vec::capacity");
