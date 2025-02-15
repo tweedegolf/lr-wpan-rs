@@ -1,4 +1,4 @@
-use std::{fs::File, time::Duration};
+use std::time::Duration;
 
 use lr_wpan_rs::{
     pib::PibValue,
@@ -14,9 +14,7 @@ use lr_wpan_rs::{
 async fn test_beacons_simple_pancoordinator() {
     let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_simple();
 
-    runner
-        .aether
-        .start_trace(File::create("beacons_after_start.pcap").unwrap());
+    runner.aether.start_trace("beacons_after_start");
 
     let reset_response = runner
         .commander
@@ -55,13 +53,10 @@ async fn test_beacons_simple_pancoordinator() {
 
     tokio::time::sleep(Duration::from_secs(10)).await;
 
-    runner.aether.stop_trace();
+    let trace = runner.aether.stop_trace();
 
     let mut seq: Option<u8> = None;
-    for frame in runner
-        .aether
-        .parse_trace(File::open("beacons_after_start.pcap").unwrap())
-    {
+    for frame in runner.aether.parse_trace(trace) {
         println!("{frame:?}");
         assert_eq!(frame.header.frame_type, FrameType::Beacon);
         assert_eq!(

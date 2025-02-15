@@ -39,6 +39,8 @@ use core::fmt::Debug;
 use std::{
     collections::HashMap,
     fs::File,
+    io::{Seek, Write},
+    path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, Mutex, MutexGuard,
@@ -90,7 +92,7 @@ impl Aether {
         let inner = AetherInner {
             nodes: Default::default(),
             started: tokio::time::Instant::now(),
-            pcap_dump: None,
+            pcap_trace: None,
         };
 
         Self {
@@ -124,12 +126,12 @@ impl Aether {
         }
     }
 
-    pub fn start_trace(&mut self, file: File) {
-        self.inner().start_trace(file);
+    pub fn start_trace(&mut self, name: &str) {
+        self.inner().start_trace(name);
     }
 
-    pub fn stop_trace(&mut self) {
-        self.inner().stop_trace();
+    pub fn stop_trace(&mut self) -> File {
+        self.inner().stop_trace()
     }
 
     pub fn parse_trace(&mut self, file: File) -> impl Iterator<Item = Frame<'static>> {
@@ -180,7 +182,7 @@ impl Aether {
 pub struct AetherInner {
     nodes: HashMap<NodeId, Node>,
     started: tokio::time::Instant,
-    pcap_dump: Option<(PcapNgWriter<File>, HashMap<NodeId, u32>)>,
+    pcap_trace: Option<(PcapNgWriter<File>, HashMap<NodeId, u32>)>,
 }
 
 impl Debug for AetherInner {
@@ -188,7 +190,7 @@ impl Debug for AetherInner {
         f.debug_struct("AetherInner")
             .field("nodes", &self.nodes)
             .field("started", &self.started)
-            .field("pcap_dump", &self.pcap_dump.as_ref().map(|(_, h)| ((), h)))
+            .field("pcap_dump", &self.pcap_trace.as_ref().map(|(_, h)| ((), h)))
             .finish()
     }
 }
@@ -205,19 +207,43 @@ impl AetherInner {
         Instant::from_ticks(0) + Duration::from_millis(since_start)
     }
 
-    pub fn start_trace(&mut self, file: File) {
-        if self.pcap_dump.is_some() {
+    pub fn start_trace(&mut self, name: &str) {
+        if self.pcap_trace.is_some() {
             panic!("Already capturing pcap");
         }
-        self.pcap_dump = Some((PcapNgWriter::new(file).unwrap(), HashMap::new()));
+
+        let output_folder = PathBuf::from(env!("OUT_DIR")).join("test-output");
+        if !output_folder.exists() {
+            std::fs::create_dir_all(&output_folder).unwrap();
+        }
+
+        let trace_file_path = output_folder.join(name).with_extension("pcap");
+
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .read(true)
+            .open(&trace_file_path)
+            .unwrap();
+
+        info!("Writing aether trace to: {}", trace_file_path.display());
+
+        self.pcap_trace = Some((PcapNgWriter::new(file).unwrap(), HashMap::new()));
     }
 
-    pub fn stop_trace(&mut self) {
-        self.pcap_dump = None;
+    /// Stops the trace and returns the file handle that was written to
+    pub fn stop_trace(&mut self) -> File {
+        let (trace_file, _) = self.pcap_trace.take().expect("No trace in progress");
+        let mut file = trace_file.into_inner();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
+        file.flush().unwrap();
+
+        file
     }
 
     fn trace(&mut self, node_id: &NodeId, pkt: &AirPacket) {
-        let Some((pcap, nodes)) = &mut self.pcap_dump else {
+        let Some((pcap, nodes)) = &mut self.pcap_trace else {
             return;
         };
 
@@ -449,9 +475,9 @@ mod tests {
             footer: Default::default(),
         };
 
-        {
+        let written = {
             let mut a = Aether::new();
-            a.start_trace(File::create("log_beacon.pcap").unwrap());
+            a.start_trace("log_beacon");
             let mut alice = a.radio();
             let mut bob = a.radio();
 
@@ -470,9 +496,10 @@ mod tests {
             bob.send(&buffer, None, true, false, SendContinuation::Idle)
                 .await
                 .unwrap();
-        }
 
-        let written = File::open("log_beacon.pcap").unwrap();
+            a.stop_trace()
+        };
+
         let mut reader = PcapNgReader::new(written).unwrap();
 
         let mut blocks = vec![];

@@ -1,5 +1,3 @@
-use std::fs::File;
-
 use futures::FutureExt;
 use lr_wpan_rs::{
     mac::MacCommander,
@@ -22,20 +20,16 @@ use test_log::test;
 async fn scan_passive() {
     let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
-    runner
-        .aether
-        .start_trace(File::create("scan_passive.pcap").unwrap());
+    runner.aether.start_trace("scan_passive");
 
     start_beacon(runner.commanders[0], 0).await;
     start_beacon(runner.commanders[1], 1).await;
 
     let (scan_confirm, notifications) =
         perform_scan(runner.commanders[2], ScanType::Passive, &[0, 1, 2], true).await;
-    runner.aether.stop_trace();
+    let trace = runner.aether.stop_trace();
 
-    let mut messages = runner
-        .aether
-        .parse_trace(File::open("scan_passive.pcap").unwrap());
+    let mut messages = runner.aether.parse_trace(trace);
 
     assert!(notifications.is_empty());
 
@@ -94,20 +88,16 @@ async fn scan_passive() {
 async fn scan_active() {
     let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
-    runner
-        .aether
-        .start_trace(File::create("scan_active.pcap").unwrap());
+    runner.aether.start_trace("scan_active");
 
     start_beacon(runner.commanders[0], 0).await;
     start_beacon(runner.commanders[1], 1).await;
 
     let (scan_confirm, notifications) =
         perform_scan(runner.commanders[2], ScanType::Active, &[0], true).await;
-    runner.aether.stop_trace();
+    let trace = runner.aether.stop_trace();
 
-    let mut messages = runner
-        .aether
-        .parse_trace(File::open("scan_active.pcap").unwrap());
+    let mut messages = runner.aether.parse_trace(trace);
 
     assert!(notifications.is_empty());
 
@@ -173,20 +163,16 @@ async fn scan_active() {
 async fn scan_passive_no_auto_request() {
     let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
 
-    runner
-        .aether
-        .start_trace(File::create("scan_passive_no_auto.pcap").unwrap());
+    runner.aether.start_trace("scan_passive_no_auto");
 
     start_beacon(runner.commanders[0], 0).await;
     start_beacon(runner.commanders[1], 1).await;
 
     let (scan_confirm, notifications) =
         perform_scan(runner.commanders[2], ScanType::Passive, &[0, 1, 2], false).await;
-    runner.aether.stop_trace();
+    let trace = runner.aether.stop_trace();
 
-    let messages = runner
-        .aether
-        .parse_trace(File::open("scan_passive_no_auto.pcap").unwrap());
+    let messages = runner.aether.parse_trace(trace);
 
     assert!(!notifications.is_empty());
 
