@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, SecurityInfo, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, SecurityInfo, Status};
 use crate::{
     wire::{
         beacon::{BeaconOrder, SuperframeOrder},
@@ -112,9 +112,12 @@ impl From<RequestValue> for StartRequest {
     }
 }
 
-impl Request for StartRequest {
+impl DynamicRequest for StartRequest {
     type Confirm = StartConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for StartRequest {}
 
 /// The MLME-START.confirm primitive reports the results of the attempt to start using a new superframe configuration.
 ///

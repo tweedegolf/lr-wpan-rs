@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 use crate::pib::PibValue;
 
 /// The MLME-SET.request primitive attempts to write the given value to the indicated PIB attribute.
@@ -24,9 +24,12 @@ impl From<RequestValue> for SetRequest {
     }
 }
 
-impl Request for SetRequest {
+impl DynamicRequest for SetRequest {
     type Confirm = SetConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for SetRequest {}
 
 /// The MLME-SET.confirm primitive reports the results of an attempt to write a value to a PIB attribute.
 ///

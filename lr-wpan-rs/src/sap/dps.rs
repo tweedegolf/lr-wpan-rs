@@ -1,4 +1,6 @@
-use super::{ConfirmValue, Indication, IndicationValue, Request, RequestValue, Status};
+use super::{
+    ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, Status,
+};
 use crate::time::Duration;
 
 /// The MLME-DPS.request primitive allows the next higher layer to request that the PHY utilize a given pair
@@ -42,9 +44,12 @@ impl From<RequestValue> for DpsRequest {
     }
 }
 
-impl Request for DpsRequest {
+impl DynamicRequest for DpsRequest {
     type Confirm = DpsConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for DpsRequest {}
 
 /// The MLME-DPS.confirm primitive reports the results of the attempt to enable or disable the DPS.
 ///

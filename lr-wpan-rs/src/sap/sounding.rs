@@ -1,11 +1,11 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, RequestValue, Status};
 
 /// The MLME-SOUNDING.request primitive is used by the next higher layer to request that the PHY respond
 /// with channel sounding information. The MLME-SOUNDING.request primitive shall be supported by all
 /// RDEVs; however, the underlying sounding capability is optional in all cases.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SoundingRequest {
-    // Intentionally empty
+    pub sounding_list_allocation: super::Allocation<SoundingData>,
 }
 
 impl From<RequestValue> for SoundingRequest {
@@ -17,8 +17,14 @@ impl From<RequestValue> for SoundingRequest {
     }
 }
 
-impl Request for SoundingRequest {
+impl DynamicRequest for SoundingRequest {
     type Confirm = SoundingConfirm;
+    type AllocationElement = SoundingData;
+
+    unsafe fn attach_allocation(&mut self, allocation: super::Allocation<Self::AllocationElement>) {
+        let _ = allocation;
+        core::unimplemented!()
+    }
 }
 
 /// The MLME-CHANNEL.confirm primitive reports the result of a request to the PHY to provide channel
@@ -33,9 +39,9 @@ impl Request for SoundingRequest {
 ///
 /// If the channel sounding capability is not supported by the PHY, the status parameters will be set to
 /// UNSUPPORTED_ATTRIBUTE.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SoundingConfirm {
-    pub sounding_list: alloc::vec::Vec<SoundingData>,
+    pub sounding_list: super::Allocation<SoundingData>,
     pub status: Status,
 }
 

@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use associate::{AssociateConfirm, AssociateIndication, AssociateRequest, AssociateResponse};
 use beacon_notify::BeaconNotifyIndication;
 use calibrate::{CalibrateConfirm, CalibrateRequest};
@@ -153,7 +155,7 @@ impl Default for SecurityInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanDescriptor {
     /// The address of the coordinator as specified in the received beacon frame.
     pub coord_address: Address,
@@ -181,33 +183,79 @@ pub struct PanDescriptor {
     pub code_list: (),
 }
 
-impl PartialEq for PanDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        #[expect(clippy::unit_cmp, reason = "Might not be unit in future")]
-        let code_list_equal = self.code_list == other.code_list;
+#[allow(private_bounds)]
+pub trait Request: DynamicRequest {}
 
-        self.coord_address == other.coord_address
-            && self.channel_number == other.channel_number
-            && self.channel_page == other.channel_page
-            && self.super_frame_spec == other.super_frame_spec
-            && self.gts_permit == other.gts_permit
-            && self.link_quality == other.link_quality
-            && self.timestamp == other.timestamp
-            && self.security_info == other.security_info
-            && code_list_equal
-            && match (self.security_status, other.security_status) {
-                (None, None) => true,
-                (None, Some(_)) => false,
-                (Some(_), None) => false,
-                (Some(l), Some(r)) => core::mem::discriminant(&l) == core::mem::discriminant(&r),
-            }
+#[allow(private_bounds)]
+pub trait DynamicRequest: From<RequestValue> + Into<RequestValue> {
+    type Confirm: From<ConfirmValue> + Into<ConfirmValue>;
+    type AllocationElement;
+
+    /// Attach an allocation to the request. This can be used to have a dynamic buffer in the request or confirm.
+    ///
+    /// # Safety:
+    ///
+    /// The allocation is logically 'owned' by both the request and the confirm, and as such must live as least as long as both
+    unsafe fn attach_allocation(&mut self, allocation: Allocation<Self::AllocationElement>) {
+        let _ = allocation;
+        unimplemented!()
     }
 }
 
-#[allow(private_bounds)]
-pub trait Request: From<RequestValue> + Into<RequestValue> {
-    type Confirm: From<ConfirmValue> + Into<ConfirmValue>;
+#[derive(PartialEq, Eq)]
+pub struct Allocation<T> {
+    pub(crate) ptr: *mut T,
+    pub(crate) len: usize,
 }
+
+impl<T> Allocation<T> {
+    pub const fn new() -> Self {
+        Self {
+            ptr: core::ptr::null_mut(),
+            len: 0,
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        if self.ptr.is_null() {
+            panic!("Allocation is empty");
+        }
+
+        // Safety: The pointer is valid for the entire live of this allocation
+        unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        if self.ptr.is_null() {
+            panic!("Allocation is empty");
+        }
+
+        // Safety: The pointer is valid for the entire live of this allocation
+        unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
+    }
+}
+
+impl<T> Default for Allocation<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Debug> Debug for Allocation<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if self.ptr.is_null() {
+            let empty: &[T] = &[];
+            f.debug_struct("Allocation").field("value", &empty).finish()
+        } else {
+            f.debug_struct("Allocation")
+                .field("value", &self.as_slice())
+                .finish()
+        }
+    }
+}
+
+unsafe impl<T: Send> Send for Allocation<T> {}
+unsafe impl<T: Sync> Sync for Allocation<T> {}
 
 pub(crate) enum RequestValue {
     Associate(AssociateRequest),

@@ -1,7 +1,8 @@
 use heapless::Vec;
 
 use super::{
-    ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
+    ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo,
+    Status,
 };
 use crate::{
     time::{Duration, Instant},
@@ -89,9 +90,12 @@ impl From<RequestValue> for DataRequest {
     }
 }
 
-impl Request for DataRequest {
+impl DynamicRequest for DataRequest {
     type Confirm = DataConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for DataRequest {}
 
 /// The MCPS-DATA.confirm primitive reports the results of a request to transfer data to another device.
 ///

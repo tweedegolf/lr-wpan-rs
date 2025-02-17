@@ -1,6 +1,6 @@
 use heapless::Vec;
 
-use super::{ConfirmValue, PanDescriptor, Request, RequestValue, SecurityInfo, Status};
+use super::{ConfirmValue, DynamicRequest, PanDescriptor, RequestValue, SecurityInfo, Status};
 use crate::ChannelPage;
 
 /// The MLME-SCAN.request primitive is used to initiate a channel scan over a given list of channels
@@ -8,10 +8,11 @@ use crate::ChannelPage;
 /// When the MLME receives this primitive, it begins the appropriate scan procedure, as defined in 5.1.2.
 ///
 /// The security info parameters are used only in an orphan scan
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ScanRequest {
     pub scan_type: ScanType,
     pub scan_channels: Vec<u8, 16>,
+    pub pan_descriptor_list: super::Allocation<Option<PanDescriptor>>,
     /// A value used to calculate the length of time to
     /// spend scanning each channel for ED, active,
     /// and passive scans. This parameter is ignored for
@@ -37,8 +38,13 @@ impl From<RequestValue> for ScanRequest {
     }
 }
 
-impl Request for ScanRequest {
+impl DynamicRequest for ScanRequest {
     type Confirm = ScanConfirm;
+    type AllocationElement = Option<PanDescriptor>;
+
+    unsafe fn attach_allocation(&mut self, allocation: super::Allocation<Self::AllocationElement>) {
+        self.pan_descriptor_list = allocation
+    }
 }
 
 /// The MLME-SCAN.confirm primitive reports the result of the channel scan request.
@@ -73,7 +79,7 @@ impl Request for ScanRequest {
 /// If the MLME-SCAN.request primitive requested an ED and the PHY type is UWB, as indicated by the
 /// phyChannelPage, then the UWBEnergyDetectList contains the results for the UWB channels scanned, and
 /// the EnergyDetectList and PANDescriptorList are null. The UWB scan is fully described in 5.1.2.1.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct ScanConfirm {
     pub status: Status,
     pub scan_type: ScanType,
@@ -87,19 +93,13 @@ pub struct ScanConfirm {
     /// The number of elements returned in
     /// the appropriate result lists. This value
     /// is zero for the result of an orphan scan.
-    pub result_list_size: u8,
+    pub result_list_size: usize,
     /// The list of energy measurements, one
     /// for each channel searched during an
     /// ED scan. This parameter is null for
     /// active, passive, and orphan scans.
     pub energy_detect_list: Vec<u8, 16>,
-    /// The list of PAN descriptors, one for
-    /// each beacon found during an active or
-    /// passive scan if macAutoRequest is set
-    /// to TRUE. This parameter is null for
-    /// ED and orphan scans or when macAutoRequest is set to FALSE during an
-    /// active or passive scan.
-    pub pan_descriptor_list: alloc::boxed::Box<Vec<PanDescriptor, 16>>,
+    pub(crate) pan_descriptor_list_allocation: super::Allocation<Option<PanDescriptor>>,
     /// Categorization of energy detected in
     /// channel with the following values:
     /// - 0: Category detection is not supported
@@ -114,6 +114,21 @@ pub struct ScanConfirm {
     /// for active, passive, and orphan scans. It
     /// is also null for non-UWB PHYs.
     pub uwb_energy_detect_list: Vec<u8, 16>,
+}
+
+impl ScanConfirm {
+    /// The list of PAN descriptors, one for
+    /// each beacon found during an active or
+    /// passive scan if macAutoRequest is set
+    /// to TRUE. This parameter is null for
+    /// ED and orphan scans or when macAutoRequest is set to FALSE during an
+    /// active or passive scan.
+    pub fn pan_descriptor_list(&self) -> impl Iterator<Item = &PanDescriptor> + '_ {
+        self.pan_descriptor_list_allocation
+            .as_slice()
+            .iter()
+            .filter_map(|pdesc| pdesc.as_ref())
+    }
 }
 
 impl From<ConfirmValue> for ScanConfirm {

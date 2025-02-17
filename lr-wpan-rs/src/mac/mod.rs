@@ -17,7 +17,7 @@ mod mlme_start;
 mod state;
 
 use commander::MacHandler;
-pub use commander::{IndicationResponder, MacCommander};
+pub use commander::{IndicationResponder, MacCommander, Allocated};
 use embassy_futures::select::{select, Either};
 use futures::FutureExt;
 use mlme_get::process_get_request;

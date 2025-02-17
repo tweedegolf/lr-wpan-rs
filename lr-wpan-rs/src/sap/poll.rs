@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, SecurityInfo, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, SecurityInfo, Status};
 use crate::wire::Address;
 
 /// The MLME-POLL.request primitive prompts the device to request data from the coordinator.
@@ -24,9 +24,12 @@ impl From<RequestValue> for PollRequest {
     }
 }
 
-impl Request for PollRequest {
+impl DynamicRequest for PollRequest {
     type Confirm = PollConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for PollRequest {}
 
 /// The MLME-POLL.confirm primitive reports the results of a request to poll the coordinator for data.
 ///

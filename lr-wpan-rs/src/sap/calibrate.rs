@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 use crate::time::Duration;
 
 /// The MLME-CALIBRATE.request primitive attempts to have the PHY respond with RMARKER offset
@@ -17,9 +17,12 @@ impl From<RequestValue> for CalibrateRequest {
     }
 }
 
-impl Request for CalibrateRequest {
+impl DynamicRequest for CalibrateRequest {
     type Confirm = CalibrateConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for CalibrateRequest {}
 
 /// The MLME-CALIBRATE.confirm primitive reports the result of a request to the PHY to provide internal
 /// propagation path information. The MLME-CALIBRATE.confirm primitive shall be implemented by

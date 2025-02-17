@@ -19,6 +19,8 @@ Initial development paid for by [Rocsys](https://www.rocsys.com/).
 - Be hardware agnostic, so it can run on any radio that implements the phy and can run on any microcontroller that's capable enough
 - Use async to its fullest extend, 'real-time' scheduling is left to the radio driver
 - Everything fully in stable Rust, preferrably without using unsafe
+- Fully no-std, and minimize alloc
+  - A little bit of alloc seems to be reasonably required sadly
 
 ## Current state
 

@@ -1,6 +1,6 @@
 use futures::FutureExt;
 use lr_wpan_rs::{
-    mac::MacCommander,
+    mac::{Allocated, MacCommander},
     pib::PibValue,
     sap::{
         beacon_notify::BeaconNotifyIndication,
@@ -8,7 +8,7 @@ use lr_wpan_rs::{
         scan::{ScanConfirm, ScanRequest, ScanType},
         set::SetRequest,
         start::StartRequest,
-        IndicationValue, PanDescriptor, SecurityInfo, Status,
+        Allocation, IndicationValue, PanDescriptor, SecurityInfo, Status,
     },
     time::Instant,
     wire::{command::Command, Frame, FrameContent, PanId, ShortAddress},
@@ -39,8 +39,8 @@ async fn scan_passive() {
     assert_eq!(scan_confirm.result_list_size, 2);
     assert!(scan_confirm.unscanned_channels.is_empty());
     pretty_assertions::assert_eq!(
-        scan_confirm.pan_descriptor_list[0],
-        PanDescriptor {
+        scan_confirm.pan_descriptor_list().nth(0).unwrap(),
+        &PanDescriptor {
             coord_address: lr_wpan_rs::wire::Address::Short(PanId(0), ShortAddress(0)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
@@ -61,8 +61,8 @@ async fn scan_passive() {
         }
     );
     pretty_assertions::assert_eq!(
-        scan_confirm.pan_descriptor_list[1],
-        PanDescriptor {
+        scan_confirm.pan_descriptor_list().nth(1).unwrap(),
+        &PanDescriptor {
             coord_address: lr_wpan_rs::wire::Address::Short(PanId(1), ShortAddress(1)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
@@ -101,21 +101,25 @@ async fn scan_active() {
 
     assert!(notifications.is_empty());
 
-    assert!(matches!(
-        messages.next(),
-        Some(Frame {
-            content: FrameContent::Command(Command::BeaconRequest),
-            ..
-        })
-    ));
+    let first_message = messages.next();
+    assert!(
+        matches!(
+            first_message,
+            Some(Frame {
+                content: FrameContent::Command(Command::BeaconRequest),
+                ..
+            })
+        ),
+        "{first_message:?}"
+    );
     assert!(messages.all(|m| matches!(m.content, FrameContent::Beacon(_))));
 
     assert_eq!(scan_confirm.status, Status::Success);
     assert_eq!(scan_confirm.result_list_size, 2);
     assert!(scan_confirm.unscanned_channels.is_empty());
     pretty_assertions::assert_eq!(
-        scan_confirm.pan_descriptor_list[0],
-        PanDescriptor {
+        scan_confirm.pan_descriptor_list().nth(0).unwrap(),
+        &PanDescriptor {
             coord_address: lr_wpan_rs::wire::Address::Short(PanId(0), ShortAddress(0)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
@@ -136,8 +140,8 @@ async fn scan_active() {
         }
     );
     pretty_assertions::assert_eq!(
-        scan_confirm.pan_descriptor_list[1],
-        PanDescriptor {
+        scan_confirm.pan_descriptor_list().nth(1).unwrap(),
+        &PanDescriptor {
             coord_address: lr_wpan_rs::wire::Address::Short(PanId(1), ShortAddress(1)),
             channel_number: 0,
             channel_page: ChannelPage::Uwb,
@@ -239,7 +243,7 @@ async fn perform_scan(
     scan_type: ScanType,
     channels: &[u8],
     auto_request: bool,
-) -> (ScanConfirm, Vec<BeaconNotifyIndication>) {
+) -> (Allocated<'static, ScanConfirm>, Vec<BeaconNotifyIndication>) {
     let reset_response = commander
         .request(ResetRequest {
             set_default_pib: true,
@@ -257,13 +261,17 @@ async fn perform_scan(
     let mut wait = core::pin::pin!(commander.wait_for_indication().fuse());
 
     let mut request = core::pin::pin!(commander
-        .request(ScanRequest {
-            scan_type,
-            scan_channels: channels.try_into().unwrap(),
-            scan_duration: 14,
-            channel_page: ChannelPage::Uwb,
-            security_info: SecurityInfo::new_none_security(),
-        })
+        .request_with_allocation(
+            ScanRequest {
+                scan_type,
+                scan_channels: channels.try_into().unwrap(),
+                scan_duration: 14,
+                channel_page: ChannelPage::Uwb,
+                security_info: SecurityInfo::new_none_security(),
+                pan_descriptor_list: Allocation::new(),
+            },
+            vec![None; 16].leak()
+        )
         .fuse());
 
     let mut beacon_notifications = Vec::new();

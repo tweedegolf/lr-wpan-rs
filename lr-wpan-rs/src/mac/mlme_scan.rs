@@ -17,9 +17,18 @@ pub async fn process_scan_request<'a>(
     phy: &mut impl Phy,
     mac_pib: &mut MacPib,
     mac_state: &mut MacState<'a>,
-    responder: RequestResponder<'a, ScanRequest>,
+    mut responder: RequestResponder<'a, ScanRequest>,
 ) {
-    let request = responder.request.clone();
+    let pan_descriptor_list = core::mem::take(&mut responder.request.pan_descriptor_list);
+
+    let request = &responder.request;
+    let default_confirm = ScanConfirm {
+        status: Status::Success,
+        scan_type: request.scan_type,
+        channel_page: request.channel_page,
+        pan_descriptor_list_allocation: pan_descriptor_list,
+        ..Default::default()
+    };
 
     let current_time = match phy.get_instant().await {
         Ok(time) => time,
@@ -27,9 +36,7 @@ pub async fn process_scan_request<'a>(
             error!("Could not read the current time: {}", e);
             responder.respond(ScanConfirm {
                 status: Status::PhyError,
-                scan_type: request.scan_type,
-                channel_page: request.channel_page,
-                ..Default::default()
+                ..default_confirm
             });
             return;
         }
@@ -39,11 +46,13 @@ pub async fn process_scan_request<'a>(
     if mac_state.current_scan_process.is_some() {
         responder.respond(ScanConfirm {
             status: Status::ScanInProgress,
-            scan_type: request.scan_type,
-            channel_page: request.channel_page,
-            ..Default::default()
+            ..default_confirm
         });
         return;
+    }
+
+    if let ScanType::Passive | ScanType::Active = request.scan_type {
+        mac_pib.pan_id = PanId::broadcast()
     }
 
     // Create the process. Making this `Some` will mark the scan as 'in process' for the rest of the system
@@ -53,19 +62,12 @@ pub async fn process_scan_request<'a>(
         end_time: current_time, // This waits 0 time before the first scan begins
         results: ScanConfirm {
             status: Status::Success,
-            scan_type: request.scan_type,
-            channel_page: request.channel_page,
-            unscanned_channels: request.scan_channels,
-            ..Default::default()
+            ..default_confirm
         },
         original_mac_pan_id: mac_pib.pan_id,
         skipped_channels: 0,
         beacons_found: false,
     });
-
-    if let ScanType::Passive | ScanType::Active = request.scan_type {
-        mac_pib.pan_id = PanId::broadcast()
-    }
 }
 
 /// A structure that manages the scan process.
@@ -171,7 +173,7 @@ impl ScanProcess<'_> {
             // Store them
 
             // Ignore duplicates (5.1.2.1.2)
-            let duplicate = self.results.pan_descriptor_list.iter().any(|descr| {
+            let duplicate = self.results.pan_descriptor_list().any(|descr| {
                 descr.coord_address == beacon_source && descr.channel_number == channel
             });
 
@@ -180,14 +182,14 @@ impl ScanProcess<'_> {
             }
 
             // Push the descriptor
-            self.results
-                .pan_descriptor_list
-                .push(pan_descriptor)
-                .unwrap();
+            self.results.pan_descriptor_list_allocation.as_slice_mut()
+                [self.results.result_list_size] = Some(pan_descriptor);
             self.results.result_list_size += 1;
 
             // End the scan if full
-            if self.results.pan_descriptor_list.is_full() {
+            if self.results.result_list_size
+                == self.results.pan_descriptor_list_allocation.as_slice().len()
+            {
                 // Next wait for action will return the Finish action
                 self.skipped_channels = self.results.unscanned_channels.len();
                 self.end_time = Instant::from_ticks(0);

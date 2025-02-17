@@ -1,5 +1,6 @@
 use super::{
-    ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
+    ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo,
+    Status,
 };
 use crate::wire::{command::GuaranteedTimeSlotCharacteristics, ShortAddress};
 
@@ -28,9 +29,12 @@ impl From<RequestValue> for GtsRequest {
     }
 }
 
-impl Request for GtsRequest {
+impl DynamicRequest for GtsRequest {
     type Confirm = GtsConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for GtsRequest {}
 
 /// The MLME-GTS.confirm primitive reports the results of a request to allocate a new GTS or to deallocate an
 /// existing GTS.
