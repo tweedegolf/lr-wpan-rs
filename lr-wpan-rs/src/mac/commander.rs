@@ -94,7 +94,7 @@ pub struct Allocated<'a, C> {
     _phantom: PhantomData<&'a mut C>,
 }
 
-impl<'a, C> core::ops::Deref for Allocated<'a, C> {
+impl<C> core::ops::Deref for Allocated<'_, C> {
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
@@ -102,7 +102,7 @@ impl<'a, C> core::ops::Deref for Allocated<'a, C> {
     }
 }
 
-impl<'a, C> core::ops::DerefMut for Allocated<'a, C> {
+impl<C> core::ops::DerefMut for Allocated<'_, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }

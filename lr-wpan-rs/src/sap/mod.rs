@@ -193,7 +193,7 @@ pub trait DynamicRequest: From<RequestValue> + Into<RequestValue> {
 
     /// Attach an allocation to the request. This can be used to have a dynamic buffer in the request or confirm.
     ///
-    /// # Safety:
+    /// # Safety
     ///
     /// The allocation is logically 'owned' by both the request and the confirm, and as such must live as least as long as both
     unsafe fn attach_allocation(&mut self, allocation: Allocation<Self::AllocationElement>) {

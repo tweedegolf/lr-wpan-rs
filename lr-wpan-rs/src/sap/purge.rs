@@ -26,8 +26,7 @@ impl DynamicRequest for PurgeRequest {
     type AllocationElement = core::convert::Infallible;
 }
 
-impl Request for PurgeRequest {
-}
+impl Request for PurgeRequest {}
 
 /// The MCPS-PURGE.confirm primitive allows the MAC sublayer to notify the next higher layer of the
 /// success of its request to purge an MSDU from the transaction queue.
