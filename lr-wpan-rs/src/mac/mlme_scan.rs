@@ -27,6 +27,7 @@ pub async fn process_scan_request<'a>(
         scan_type: request.scan_type,
         channel_page: request.channel_page,
         pan_descriptor_list_allocation: pan_descriptor_list,
+        unscanned_channels: request.scan_channels.clone(),
         ..Default::default()
     };
 
@@ -51,6 +52,7 @@ pub async fn process_scan_request<'a>(
         return;
     }
 
+    let original_mac_pan_id = mac_pib.pan_id;
     if let ScanType::Passive | ScanType::Active = request.scan_type {
         mac_pib.pan_id = PanId::broadcast()
     }
@@ -64,7 +66,7 @@ pub async fn process_scan_request<'a>(
             status: Status::Success,
             ..default_confirm
         },
-        original_mac_pan_id: mac_pib.pan_id,
+        original_mac_pan_id,
         skipped_channels: 0,
         beacons_found: false,
     });
