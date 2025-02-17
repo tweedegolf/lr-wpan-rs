@@ -6,7 +6,7 @@ pub struct Allocated<'a, C> {
     _phantom: PhantomData<&'a mut C>,
 }
 
-impl<'a, C> Allocated<'a, C> {
+impl<C> Allocated<'_, C> {
     pub(crate) fn new(inner: C) -> Self {
         Self {
             inner,

@@ -46,11 +46,10 @@ impl MacCommander {
                 ptr: allocation.as_mut_ptr(),
                 len: allocation.len(),
             });
-
-            // To make safety easier, drop the reference so we can't touch it anymore
-            #[expect(dropping_references)]
-            drop(allocation);
         }
+        // To make safety easier, shadow the reference so we can't touch it anymore
+        #[expect(unused)]
+        let allocation = ();
 
         let confirm = self
             .request_confirm_channel
