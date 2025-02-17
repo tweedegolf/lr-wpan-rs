@@ -28,3 +28,12 @@ jobs:
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
     - run: cargo clippy -- -D warnings
+
+  build-no-std:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: thumbv7em-none-eabihf
+    - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features defmt-03

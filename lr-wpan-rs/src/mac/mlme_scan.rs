@@ -180,7 +180,10 @@ impl ScanProcess<'_> {
             }
 
             // Push the descriptor
-            self.results.pan_descriptor_list.push(pan_descriptor);
+            self.results
+                .pan_descriptor_list
+                .push(pan_descriptor)
+                .unwrap();
             self.results.result_list_size += 1;
 
             // End the scan if full

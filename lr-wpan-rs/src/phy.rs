@@ -1,12 +1,10 @@
-use arrayvec::ArrayVec;
+use heapless::Vec;
 
 use crate::{
     pib::{PhyPib, PhyPibWrite},
     time::{Duration, Instant},
     ChannelPage,
 };
-
-pub mod dw1000;
 
 pub trait Phy {
     #[cfg(not(feature = "defmt-03"))]
@@ -111,7 +109,7 @@ pub enum SendContinuation {
 pub struct ReceivedMessage {
     /// The time at which the message was received
     pub timestamp: Instant,
-    pub data: ArrayVec<u8, 127>,
+    pub data: Vec<u8, 127>,
     /// The LQI at which the network beacon was received. Lower values represent lower LQI, as defined in 8.2.6.
     pub lqi: u8,
     /// The channel on which the message was received

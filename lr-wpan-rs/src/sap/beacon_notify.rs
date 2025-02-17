@@ -1,4 +1,4 @@
-use arrayvec::ArrayVec;
+use heapless::Vec;
 
 use super::{Indication, IndicationValue, PanDescriptor};
 use crate::{consts::MAX_BEACON_PAYLOAD_LENGTH, wire::beacon::PendingAddress};
@@ -16,7 +16,7 @@ pub struct BeaconNotifyIndication {
     /// The set of octets comprising the beacon
     /// payload to be transferred from the MAC
     /// sublayer entity to the next higher layer.
-    pub sdu: ArrayVec<u8, MAX_BEACON_PAYLOAD_LENGTH>,
+    pub sdu: Vec<u8, MAX_BEACON_PAYLOAD_LENGTH>,
 }
 
 impl From<IndicationValue> for BeaconNotifyIndication {

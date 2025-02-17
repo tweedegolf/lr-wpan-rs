@@ -1,4 +1,4 @@
-use arrayvec::ArrayVec;
+use heapless::Vec;
 
 use super::{ConfirmValue, PanDescriptor, Request, RequestValue, SecurityInfo, Status};
 use crate::ChannelPage;
@@ -11,7 +11,7 @@ use crate::ChannelPage;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScanRequest {
     pub scan_type: ScanType,
-    pub scan_channels: ArrayVec<u8, 16>,
+    pub scan_channels: Vec<u8, 16>,
     /// A value used to calculate the length of time to
     /// spend scanning each channel for ED, active,
     /// and passive scans. This parameter is ignored for
@@ -83,7 +83,7 @@ pub struct ScanConfirm {
     /// A list of the channels given in the
     /// request which were not scanned. This
     /// parameter is not valid for ED scans.
-    pub unscanned_channels: ArrayVec<u8, 16>,
+    pub unscanned_channels: Vec<u8, 16>,
     /// The number of elements returned in
     /// the appropriate result lists. This value
     /// is zero for the result of an orphan scan.
@@ -92,14 +92,14 @@ pub struct ScanConfirm {
     /// for each channel searched during an
     /// ED scan. This parameter is null for
     /// active, passive, and orphan scans.
-    pub energy_detect_list: ArrayVec<u8, 16>,
+    pub energy_detect_list: Vec<u8, 16>,
     /// The list of PAN descriptors, one for
     /// each beacon found during an active or
     /// passive scan if macAutoRequest is set
     /// to TRUE. This parameter is null for
     /// ED and orphan scans or when macAutoRequest is set to FALSE during an
     /// active or passive scan.
-    pub pan_descriptor_list: alloc::boxed::Box<ArrayVec<PanDescriptor, 16>>,
+    pub pan_descriptor_list: alloc::boxed::Box<Vec<PanDescriptor, 16>>,
     /// Categorization of energy detected in
     /// channel with the following values:
     /// - 0: Category detection is not supported
@@ -113,7 +113,7 @@ pub struct ScanConfirm {
     /// ResultListSize. This parameter is null
     /// for active, passive, and orphan scans. It
     /// is also null for non-UWB PHYs.
-    pub uwb_energy_detect_list: ArrayVec<u8, 16>,
+    pub uwb_energy_detect_list: Vec<u8, 16>,
 }
 
 impl From<ConfirmValue> for ScanConfirm {

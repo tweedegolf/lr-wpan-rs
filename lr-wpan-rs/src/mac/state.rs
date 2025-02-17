@@ -1,5 +1,5 @@
 use arraydeque::ArrayDeque;
-use arrayvec::ArrayVec;
+use heapless::Vec;
 use rand_core::RngCore;
 
 use super::{callback::SendCallback, mlme_scan::ScanProcess, MacConfig};
@@ -57,10 +57,13 @@ impl MacState<'_> {
     pub fn serialize_frame(
         &mut self,
         frame: crate::wire::Frame<'_>,
-    ) -> ArrayVec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }> {
+    ) -> Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }> {
         use byte::TryWrite;
 
-        let mut buffer = ArrayVec::from([0; crate::consts::MAX_PHY_PACKET_SIZE]);
+        let mut buffer = Vec::new();
+        buffer
+            .resize_default(crate::consts::MAX_PHY_PACKET_SIZE)
+            .unwrap();
         let length = frame
             .try_write(&mut buffer, &mut self.frame_ser_des_context())
             .expect("Buffer is always big enough");
@@ -107,7 +110,7 @@ pub struct MessageScheduler<'a> {
 impl<'a> MessageScheduler<'a> {
     pub fn schedule_broadcast_priority(
         &mut self,
-        data: ArrayVec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
+        data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
         callback: SendCallback<'a>,
     ) {
         if self
@@ -122,7 +125,7 @@ impl<'a> MessageScheduler<'a> {
     #[expect(dead_code, reason = "for future use")]
     pub fn schedule_broadcast(
         &mut self,
-        data: ArrayVec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
+        data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
         callback: SendCallback<'a>,
     ) {
         if self
@@ -148,7 +151,7 @@ impl<'a> MessageScheduler<'a> {
 }
 
 pub struct ScheduledMessage<'a> {
-    pub data: ArrayVec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
+    pub data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
     pub callback: SendCallback<'a>,
 }
 

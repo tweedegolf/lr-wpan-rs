@@ -1,3 +1,5 @@
+#![no_std]
+
 use core::fmt::{Debug, Display};
 
 pub use dw1000;
@@ -7,12 +9,8 @@ use dw1000::{
 use embassy_futures::select::{select, Either};
 use embedded_hal::{delay::DelayNs as DelayNsSync, digital::ErrorType, spi::SpiDevice};
 use embedded_hal_async::{delay::DelayNs, digital::Wait};
-#[allow(unused_imports)]
-use micromath::F32Ext;
-
-use super::{ModulationType, Phy, ReceivedMessage};
-use crate::{
-    phy::SendContinuation,
+use lr_wpan_rs::{
+    phy::{ModulationType, Phy, ReceivedMessage, SendContinuation},
     pib::{
         CcaMode, ChannelDescription, NativePrf, PhyPib, PhyPibWrite, TXPowerTolerance,
         UwbCurrentPulseShape,
@@ -20,6 +18,8 @@ use crate::{
     time::{Duration, Instant},
     ChannelPage,
 };
+#[allow(unused_imports)]
+use micromath::F32Ext;
 
 const TIME_CHECK_INTERVAL_MILLIS: u32 = 5000;
 const TIME_CHECK_MILLIS_PER_DELAY: u32 = 100;
@@ -90,7 +90,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> DW1000Phy<SPI, IRQ, DELAY> {
     }
 }
 
-impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IRQ, DELAY> {
+impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELAY> {
     type Error = Error<SPI, IRQ>;
 
     type ProcessingContext = Either<Result<(), IRQ::Error>, ()>;
@@ -108,7 +108,8 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
         const SYMBOLS_PER_OCTET: f32 = 9.17648; // Not too sure... This is `8 * (1s / symbol duration in secs (Tdsym)) / 850_000`
         const SHR_DURATION: u32 = NUM_PREAMBLE_SYMBOLS + NUM_SFD_SYMBOLS;
         let max_frame_duration = SHR_DURATION
-            + (((crate::consts::MAX_PHY_PACKET_SIZE + 1) as f32 * SYMBOLS_PER_OCTET).ceil() as u32);
+            + (((lr_wpan_rs::consts::MAX_PHY_PACKET_SIZE + 1) as f32 * SYMBOLS_PER_OCTET).ceil()
+                as u32);
 
         self.phy_pib = PhyPib {
             pib_write: PhyPibWrite {
@@ -118,8 +119,8 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
                 cca_mode: CcaMode::Aloha,                  // TODO: Not reflected in driver
                 current_page: UWB_CHANNEL_PAGE,
                 uwb_current_pulse_shape: UwbCurrentPulseShape::Mandatory, // Only supported shape
-                uwb_cou_pulse: crate::pib::UwbCouPulse::CCh1,
-                uwb_cs_pulse: crate::pib::UwbCsPulse::No1,
+                uwb_cou_pulse: lr_wpan_rs::pib::UwbCouPulse::CCh1,
+                uwb_cs_pulse: lr_wpan_rs::pib::UwbCsPulse::No1,
                 uwb_lcp_weight1: 0,
                 uwb_lcp_weight2: 0,
                 uwb_lcp_weight3: 0,
@@ -179,7 +180,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
         Ok(())
     }
 
-    async fn get_instant(&mut self) -> Result<crate::time::Instant, Self::Error> {
+    async fn get_instant(&mut self) -> Result<lr_wpan_rs::time::Instant, Self::Error> {
         let sys_time = match &mut self.dw1000 {
             DW1000::Empty => return Err(Error::WrongState),
             DW1000::Ready(dw1000) => dw1000.sys_time()?.value(),
@@ -209,11 +210,11 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
     async fn send(
         &mut self,
         data: &[u8],
-        send_time: Option<crate::time::Instant>,
+        send_time: Option<lr_wpan_rs::time::Instant>,
         ranging: bool,
         use_csma: bool,
-        continuation: super::SendContinuation,
-    ) -> Result<super::SendResult, Self::Error> {
+        continuation: lr_wpan_rs::phy::SendContinuation,
+    ) -> Result<lr_wpan_rs::phy::SendResult, Self::Error> {
         assert!(!use_csma, "Not supported");
         assert!(
             !matches!(continuation, SendContinuation::WaitForResponse { .. }),
@@ -272,7 +273,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
             Err((_dw1000, e)) => {
                 // No real recovery possible...
                 #[cfg(feature = "defmt-03")]
-                panic!("Could not finish sending: {}", defmt::Debug2Format(&e));
+                defmt::panic!("Could not finish sending: {}", defmt::Debug2Format(&e));
                 #[cfg(not(feature = "defmt-03"))]
                 panic!("Could not finish sending: {:?}", e);
             }
@@ -285,7 +286,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
             self.start_receive().await?;
         }
 
-        Ok(super::SendResult::Success(tx_time))
+        Ok(lr_wpan_rs::phy::SendResult::Success(tx_time))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
@@ -350,7 +351,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
                             Ok(message) => {
                                 let timestamp = self.convert_to_mac_time(message.rx_time).await?;
 
-                                Ok(Some(super::ReceivedMessage {
+                                Ok(Some(lr_wpan_rs::phy::ReceivedMessage {
                                     timestamp,
                                     data: message.bytes.try_into().unwrap(),
                                     lqi: 255, // TODO
@@ -379,7 +380,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
 
     async fn update_phy_pib<U>(
         &mut self,
-        f: impl FnOnce(&mut crate::pib::PhyPibWrite) -> U,
+        f: impl FnOnce(&mut lr_wpan_rs::pib::PhyPibWrite) -> U,
     ) -> Result<U, Self::Error> {
         let old_pib = self.phy_pib.pib_write.clone();
         let old_rx_config = self.current_rx_config;
@@ -492,7 +493,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> super::Phy for DW1000Phy<SPI, IR
         }
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&crate::pib::PhyPib, Self::Error> {
+    async fn get_phy_pib(&mut self) -> Result<&lr_wpan_rs::pib::PhyPib, Self::Error> {
         Ok(&self.phy_pib)
     }
 }

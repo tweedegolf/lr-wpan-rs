@@ -9,30 +9,28 @@ repository = "https://github.com/tweedegolf/lr-wpan-rs"
 readme = "README.md"
 
 [dependencies]
-embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-stm32-v0.2.0", default-features = false }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-stm32-v0.2.0" }
+embassy-futures = { version = "0.1.1", default-features = false }
+embassy-sync = { version = "0.6.2" }
 
-arrayvec = { version = "0.7.6", default-features = false }
 critical-section = "1.2.0"
 maitake-sync = { version = "0.2.1", default-features = false }
-dw1000 = { git = "https://github.com/jkelleyrtp/dw1000-rs", rev = "698987dbfebb2db16bf20c166bf0d75c16f982c1" }
-embedded-hal = "1.0.0"
-embedded-hal-async = "1.0.0"
-nb = "1.1.0"
-micromath = "2.1.0"
 rand_core = "0.9.0"
-pcap-file = { version = "2.0.0", optional = true }
 defmt = { version = "0.3.8", optional = true }
-log = { version = "0.4.22", optional = true }
 arraydeque = { version = "0.5.1", default-features = false }
 byte = "0.2.7"
-rand = { version = "0.9.0", optional = true }
 futures = { version = "0.3.31", default-features = false, features = ["async-await"] }
+micromath = "2.1.0"
+embedded-hal-async = "1.0.0"
 
 heapless = "0.8.0"
 ccm = { version = "0.4.0", default-features = false }
 cipher = { version = "0.3.0", default-features = false }
+
+# test-helpers
+pcap-file = { version = "2.0.0", optional = true }
+log = { version = "0.4.22", optional = true }
 tokio = { version = "1.41.0", optional = true, default-features = false, features = ["time", "test-util"] }
+rand = { version = "0.9.0", optional = true }
 
 [dev-dependencies]
 test-log = "0.2.16"
@@ -47,6 +45,6 @@ default = ["test_helpers"]
 std = ["critical-section/std"]
 test_helpers = ["std", "dep:tokio", "log-04", "dep:rand", "dep:pcap-file"]
 ## Use [`defmt`](https://docs.rs/defmt/latest/defmt/) for logging
-defmt-03 = ["dep:defmt"]
+defmt-03 = ["dep:defmt", "heapless/defmt-03"]
 ## Use [`log`](https://docs.rs/log/latest/log/) for logging
 log-04 = ["dep:log"]

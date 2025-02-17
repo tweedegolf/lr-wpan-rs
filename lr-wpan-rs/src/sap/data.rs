@@ -1,4 +1,4 @@
-use arrayvec::ArrayVec;
+use heapless::Vec;
 
 use super::{
     ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
@@ -49,7 +49,7 @@ pub struct DataRequest {
     /// The individual device address of the entity to which the MSDU is being transferred.
     pub dst_addr: Option<DeviceAddress>,
     /// The set of octets forming the MSDU to be transmitted by the MAC sublayer entity.
-    pub msdu: ArrayVec<u8, { crate::consts::MAX_MAC_PAYLOAD_SIZE }>,
+    pub msdu: Vec<u8, { crate::consts::MAX_MAC_PAYLOAD_SIZE }>,
     /// The handle associated with the MSDU to be transmitted by the MAC sublayer entity.
     pub msdu_handle: u8,
     /// TRUE if acknowledged transmission is used, FALSE otherwise.
@@ -206,7 +206,7 @@ pub struct DataIndication {
     /// The individual device address of the entity to which the MSDU is being transferred.
     pub dst_addr: Option<DeviceAddress>,
     /// The set of octets forming the MSDU being indicated by the MAC sublayer entity.
-    pub msdu: ArrayVec<u8, { crate::consts::MAX_MAC_PAYLOAD_SIZE }>,
+    pub msdu: Vec<u8, { crate::consts::MAX_MAC_PAYLOAD_SIZE }>,
     /// LQI value measured during reception of the MPDU.
     /// Lower values represent lower LQI, as described in 8.2.6.
     pub mpdu_link_quality: u8,

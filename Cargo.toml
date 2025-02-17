@@ -1,5 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-    "lr-wpan-rs"
+    "lr-wpan-rs",
+    "lr-wpan-rs-dw1000"
 ]

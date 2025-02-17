@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 use super::{ConfirmValue, Request, RequestValue, Status};
 
 /// The MLME-SOUNDING.request primitive is used by the next higher layer to request that the PHY respond
@@ -37,7 +35,7 @@ impl Request for SoundingRequest {
 /// UNSUPPORTED_ATTRIBUTE.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SoundingConfirm {
-    pub sounding_list: Vec<SoundingData>,
+    pub sounding_list: alloc::vec::Vec<SoundingData>,
     pub status: Status,
 }
 

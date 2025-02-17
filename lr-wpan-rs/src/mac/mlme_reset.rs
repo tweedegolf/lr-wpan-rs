@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use micromath::F32Ext;
 use rand_core::RngCore;
 
 use super::{commander::RequestResponder, state::MacState, MacConfig, MacError};

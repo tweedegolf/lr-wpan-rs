@@ -1,0 +1,17 @@
+[package]
+name = "lr-wpan-rs-dw1000"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lr-wpan-rs = { path = "../lr-wpan-rs", default-features = false }
+dw1000 = { git = "https://github.com/jkelleyrtp/dw1000-rs", rev = "698987dbfebb2db16bf20c166bf0d75c16f982c1" }
+embassy-futures = "0.1.1"
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+micromath = "2.1.0"
+nb = "1.1.0"
+defmt = { version = "0.3.10", optional = true }
+
+[features]
+defmt-03 = ["dep:defmt"]

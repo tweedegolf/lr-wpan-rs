@@ -47,8 +47,8 @@ use std::{
     },
 };
 
-use arrayvec::ArrayVec;
 use byte::TryRead;
+use heapless::Vec;
 use pcap_file::{
     pcapng::{
         blocks::{
@@ -324,13 +324,13 @@ pub struct Node {
 
 #[derive(Debug, Clone)]
 pub struct AirPacket {
-    pub data: ArrayVec<u8, 127>,
+    pub data: Vec<u8, 127>,
     pub time_stamp: Instant,
     pub channel: u8,
 }
 
 impl AirPacket {
-    pub fn new(data: impl TryInto<ArrayVec<u8, 127>>, time_stamp: Instant, channel: u8) -> Self {
+    pub fn new(data: impl TryInto<Vec<u8, 127>>, time_stamp: Instant, channel: u8) -> Self {
         let Ok(data) = data.try_into() else {
             unreachable!("Test data always fits 127 bytes");
         };
@@ -481,7 +481,10 @@ mod tests {
             let mut alice = a.radio();
             let mut bob = a.radio();
 
-            let mut buffer = ArrayVec::from([0; crate::consts::MAX_PHY_PACKET_SIZE]);
+            let mut buffer = Vec::<_, { crate::consts::MAX_PHY_PACKET_SIZE }>::new();
+            buffer
+                .resize_default(crate::consts::MAX_PHY_PACKET_SIZE)
+                .unwrap();
             let mut ctx = wire::FrameSerDesContext::<Unimplemented, Unimplemented>::new(
                 FooterMode::None,
                 None,
