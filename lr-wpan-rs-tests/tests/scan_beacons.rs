@@ -18,7 +18,7 @@ use test_log::test;
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_passive() {
-    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
     runner.aether.start_trace("scan_passive");
 
@@ -86,7 +86,7 @@ async fn scan_passive() {
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_active() {
-    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
     runner.aether.start_trace("scan_active");
 
@@ -161,7 +161,7 @@ async fn scan_active() {
 
 #[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn scan_passive_no_auto_request() {
-    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_multi(3);
+    let mut runner = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
     runner.aether.start_trace("scan_passive_no_auto");
 

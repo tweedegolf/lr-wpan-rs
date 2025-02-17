@@ -46,7 +46,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[futures_test::test]
     async fn test_echo_single() {
         const MAX_VAL: u32 = 10000;
         let channel = ReqResp::<_, _, 4>::new();
@@ -71,7 +71,7 @@ mod tests {
         join(requester, responder).await;
     }
 
-    #[tokio::test]
+    #[futures_test::test]
     #[expect(clippy::identity_op, reason = "better code layout")]
     async fn test_echo_multi() {
         const MAX_VAL: u32 = 8 * 10 - 1;

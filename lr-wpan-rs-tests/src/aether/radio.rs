@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use tokio::sync::mpsc::Receiver;
-
-use crate::{
+use lr_wpan_rs::{
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::{PhyPib, PhyPibWrite},
-    test_helpers::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId},
     time::Instant,
 };
+use tokio::sync::mpsc::Receiver;
+
+use crate::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId};
 
 /// Single radio connected to an [`Aether`]
 #[derive(Debug)]
@@ -64,8 +64,8 @@ impl Phy for AetherRadio {
         Ok(self.aether().aether.now())
     }
 
-    fn symbol_duration(&self) -> crate::time::Duration {
-        crate::time::Duration::from_ticks(10000)
+    fn symbol_duration(&self) -> lr_wpan_rs::time::Duration {
+        lr_wpan_rs::time::Duration::from_ticks(10000)
     }
 
     async fn send(
@@ -76,8 +76,9 @@ impl Phy for AetherRadio {
         _use_csma: bool,
         _continuation: SendContinuation,
     ) -> Result<SendResult, Self::Error> {
-        let now = send_time.unwrap_or_else(|| tokio::time::Instant::now().into());
-        tokio::time::sleep_until(now.into()).await;
+        let now = send_time
+            .unwrap_or_else(|| std::time::Instant::from(tokio::time::Instant::now()).into());
+        tokio::time::sleep_until(now.into_std().into()).await;
 
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
@@ -120,10 +121,10 @@ impl Phy for AetherRadio {
                 data: msg.data,
                 lqi: 255,
                 channel: msg.channel,
-                page: crate::ChannelPage::Uwb,
+                page: lr_wpan_rs::ChannelPage::Uwb,
             };
 
-            tokio::time::sleep_until(msg.timestamp.into()).await;
+            tokio::time::sleep_until(msg.timestamp.into_std().into()).await;
 
             return Ok(msg);
         }

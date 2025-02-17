@@ -12,7 +12,7 @@ use lr_wpan_rs::{
 
 #[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
 async fn test_beacons_simple_pancoordinator() {
-    let mut runner = lr_wpan_rs::test_helpers::run::run_mac_engine_simple();
+    let mut runner = lr_wpan_rs_tests::run::run_mac_engine_simple();
 
     runner.aether.start_trace("beacons_after_start");
 

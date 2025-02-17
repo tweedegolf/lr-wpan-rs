@@ -15,8 +15,6 @@ pub mod phy;
 pub mod pib;
 mod reqresp;
 pub mod sap;
-#[cfg(feature = "test_helpers")]
-pub mod test_helpers;
 pub mod time;
 pub mod wire;
 

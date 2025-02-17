@@ -5,7 +5,7 @@
 //! # Example
 //! ```
 //! use lr_wpan_rs::phy::{Phy, SendContinuation, SendResult};
-//! use lr_wpan_rs::test_helpers::aether::{Aether, Coordinate, Meters};
+//! use lr_wpan_rs_tests::aether::{Aether, Coordinate, Meters};
 //! use lr_wpan_rs::time::Duration;
 //!
 //! # tokio::runtime::Builder::new_current_thread().enable_time().start_paused(true).build().unwrap().block_on(async {
@@ -34,9 +34,9 @@
 //! # });
 //! ```
 
-use alloc::borrow::Cow;
 use core::fmt::Debug;
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs::File,
     io::{Seek, Write},
@@ -49,6 +49,11 @@ use std::{
 
 use byte::TryRead;
 use heapless::Vec;
+use lr_wpan_rs::{
+    pib::PhyPib,
+    time::{Duration, Instant},
+    wire::Frame,
+};
 use pcap_file::{
     pcapng::{
         blocks::{
@@ -60,12 +65,6 @@ use pcap_file::{
     DataLink,
 };
 use tokio::sync::mpsc::{channel, error::TrySendError, Sender};
-
-use crate::{
-    pib::PhyPib,
-    time::{Duration, Instant},
-    wire::Frame,
-};
 
 mod radio;
 mod space_time;
@@ -160,7 +159,7 @@ impl Aether {
                         return Some(
                             Frame::try_read(
                                 enhanced_packet_block.data.to_vec().leak(),
-                                crate::wire::FooterMode::None,
+                                lr_wpan_rs::wire::FooterMode::None,
                             )
                             .unwrap()
                             .0,
@@ -227,7 +226,7 @@ impl AetherInner {
             .open(&trace_file_path)
             .unwrap();
 
-        info!("Writing aether trace to: {}", trace_file_path.display());
+        log::info!("Writing aether trace to: {}", trace_file_path.display());
 
         self.pcap_trace = Some((PcapNgWriter::new(file).unwrap(), HashMap::new()));
     }
@@ -346,11 +345,7 @@ impl AirPacket {
 #[cfg(test)]
 mod tests {
     use byte::TryWrite;
-    use pcap_file::pcapng::PcapNgReader;
-    use tokio::time::timeout;
-
-    use super::*;
-    use crate::{
+    use lr_wpan_rs::{
         phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
         wire,
         wire::{
@@ -362,6 +357,10 @@ mod tests {
             FooterMode, FrameVersion,
         },
     };
+    use pcap_file::pcapng::PcapNgReader;
+    use tokio::time::timeout;
+
+    use super::*;
 
     async fn receive_one(bob: &mut AetherRadio) -> ReceivedMessage {
         let (tx, mut rx) = channel(1);
@@ -481,9 +480,9 @@ mod tests {
             let mut alice = a.radio();
             let mut bob = a.radio();
 
-            let mut buffer = Vec::<_, { crate::consts::MAX_PHY_PACKET_SIZE }>::new();
+            let mut buffer = Vec::<_, { lr_wpan_rs::consts::MAX_PHY_PACKET_SIZE }>::new();
             buffer
-                .resize_default(crate::consts::MAX_PHY_PACKET_SIZE)
+                .resize_default(lr_wpan_rs::consts::MAX_PHY_PACKET_SIZE)
                 .unwrap();
             let mut ctx = wire::FrameSerDesContext::<Unimplemented, Unimplemented>::new(
                 FooterMode::None,

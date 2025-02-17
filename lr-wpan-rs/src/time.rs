@@ -71,6 +71,11 @@ impl Instant {
             None => None,
         }
     }
+
+    #[cfg(feature = "std")]
+    pub fn into_std(self) -> std::time::Instant {
+        self.into()
+    }
 }
 
 impl Add<Duration> for Instant {
@@ -115,6 +120,31 @@ impl Div<Duration> for Instant {
     fn div(self, rhs: Duration) -> Self::Output {
         let div = self.ticks / rhs.ticks.unsigned_abs();
         i64::try_from(div).expect("Overflow") * rhs.ticks.signum()
+    }
+}
+
+#[cfg(feature = "std")]
+static START_TIME: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+#[cfg(feature = "std")]
+impl From<std::time::Instant> for Instant {
+    fn from(value: std::time::Instant) -> Self {
+        let start = START_TIME.get_or_init(std::time::Instant::now);
+        let since_start = value.duration_since(*start);
+
+        let ticks = since_start.as_secs_f64() * TICKS_PER_SECOND as f64;
+
+        Instant::from_ticks(ticks as u64)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<Instant> for std::time::Instant {
+    fn from(value: Instant) -> Self {
+        let start = *START_TIME.get_or_init(std::time::Instant::now);
+        let seconds = value.ticks() as f64 / TICKS_PER_SECOND as f64;
+
+        start + std::time::Duration::from_secs_f64(seconds)
     }
 }
 
@@ -223,6 +253,11 @@ impl Duration {
             ticks: self.ticks.abs(),
         }
     }
+
+    #[cfg(feature = "std")]
+    pub fn into_std(self) -> std::time::Duration {
+        self.into()
+    }
 }
 
 impl Add for Duration {
@@ -290,6 +325,15 @@ impl Div<i64> for Duration {
 impl DivAssign<i64> for Duration {
     fn div_assign(&mut self, rhs: i64) {
         *self = *self / rhs;
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        let seconds = value.ticks() as f64 / TICKS_PER_SECOND as f64;
+
+        std::time::Duration::from_secs_f64(seconds)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::time::{Duration, TICKS_PER_SECOND};
+use lr_wpan_rs::time::{Duration, TICKS_PER_SECOND};
 
 #[derive(Debug, Default, Clone, Copy, PartialOrd, PartialEq)]
 pub struct Meters(pub f64);

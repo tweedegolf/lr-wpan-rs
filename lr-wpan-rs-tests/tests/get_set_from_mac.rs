@@ -6,7 +6,7 @@ use lr_wpan_rs::{
 
 #[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn get_set() {
-    let runner = lr_wpan_rs::test_helpers::run::run_mac_engine_simple();
+    let runner = lr_wpan_rs_tests::run::run_mac_engine_simple();
 
     test_get(runner.commander).await;
     test_set(runner.commander).await;

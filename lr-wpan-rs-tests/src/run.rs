@@ -1,26 +1,26 @@
 use std::sync::Arc;
 
+use lr_wpan_rs::{
+    mac::{MacCommander, MacConfig},
+    wire::ExtendedAddress,
+};
 use rand::{rngs::StdRng, SeedableRng};
 use tokio::task::AbortHandle;
 
 use super::aether::Aether;
-use crate::{
-    mac::{MacCommander, MacConfig},
-    wire::ExtendedAddress,
-};
 
 /// Run a single mac engine
 pub fn run_mac_engine_simple() -> Runner {
     let commander = Box::leak(Box::new(MacCommander::new()));
     let mut aether = Aether::new();
 
-    let task_handle = tokio::spawn(crate::mac::run_mac_engine(
+    let task_handle = tokio::spawn(lr_wpan_rs::mac::run_mac_engine(
         aether.radio(),
         commander,
         MacConfig {
             extended_address: ExtendedAddress(0x0123456789abcdef),
             rng: StdRng::seed_from_u64(0),
-            delay: crate::test_helpers::time::Delay,
+            delay: crate::time::Delay,
         },
     ))
     .abort_handle();
@@ -53,13 +53,13 @@ pub fn run_mac_engine_multi(count: usize) -> MultiRunner {
     let task_handles = (0..count)
         .map(|i| {
             let commanders = commanders.clone();
-            tokio::spawn(crate::mac::run_mac_engine(
+            tokio::spawn(lr_wpan_rs::mac::run_mac_engine(
                 aether.radio(),
                 commanders[i],
                 MacConfig {
                     extended_address: ExtendedAddress(i as _),
                     rng: StdRng::seed_from_u64(i as _),
-                    delay: crate::test_helpers::time::Delay,
+                    delay: crate::time::Delay,
                 },
             ))
             .abort_handle()

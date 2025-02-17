@@ -1,6 +1,3 @@
 [workspace]
 resolver = "3"
-members = [
-    "lr-wpan-rs",
-    "lr-wpan-rs-dw1000"
-]
+members = ["lr-wpan-rs", "lr-wpan-rs-dw1000", "lr-wpan-rs-tests"]
