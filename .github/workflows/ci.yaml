@@ -36,4 +36,5 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         targets: thumbv7em-none-eabihf
-    - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features defmt-03
+    - run: cargo build -p lr-wpan-rs --target thumbv7em-none-eabihf --no-default-features --features defmt-03
+    - run: cargo build -p lr-wpan-rs-dw1000 --target thumbv7em-none-eabihf --no-default-features --features defmt-03
