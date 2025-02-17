@@ -1,6 +1,7 @@
 use futures::FutureExt;
 use lr_wpan_rs::{
-    mac::{Allocated, MacCommander},
+    allocation::{Allocated, Allocation},
+    mac::MacCommander,
     pib::PibValue,
     sap::{
         beacon_notify::BeaconNotifyIndication,
@@ -8,7 +9,7 @@ use lr_wpan_rs::{
         scan::{ScanConfirm, ScanRequest, ScanType},
         set::SetRequest,
         start::StartRequest,
-        Allocation, IndicationValue, PanDescriptor, SecurityInfo, Status,
+        IndicationValue, PanDescriptor, SecurityInfo, Status,
     },
     time::Instant,
     wire::{command::Command, Frame, FrameContent, PanId, ShortAddress},

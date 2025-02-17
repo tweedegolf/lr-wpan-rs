@@ -1,14 +1,12 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 #![allow(async_fn_in_trait)]
 
-extern crate alloc;
-extern crate core;
-
 use crate::wire::{ExtendedAddress, ShortAddress};
 
 // This must go FIRST so that all the other modules see its macros.
 mod fmt;
 
+pub mod allocation;
 pub mod consts;
 pub mod mac;
 pub mod phy;

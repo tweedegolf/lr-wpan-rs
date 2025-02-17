@@ -1,10 +1,9 @@
-use core::marker::PhantomData;
-
 use crate::{
+    allocation::{Allocated, Allocation},
     reqresp::ReqResp,
     sap::{
-        Allocation, ConfirmValue, DynamicRequest, Indication, IndicationValue, Request,
-        RequestValue, ResponseValue,
+        ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue,
+        ResponseValue,
     },
 };
 
@@ -59,10 +58,7 @@ impl MacCommander {
             .await
             .into();
 
-        Allocated {
-            inner: confirm,
-            _phantom: PhantomData,
-        }
+        Allocated::new(confirm)
     }
 
     /// Wait until an indication is received. The indication must be responded to using the returned [IndicationResponder].
@@ -85,26 +81,6 @@ impl MacCommander {
 impl Default for MacCommander {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// A value containing an allocation living for `'a`
-pub struct Allocated<'a, C> {
-    inner: C,
-    _phantom: PhantomData<&'a mut C>,
-}
-
-impl<C> core::ops::Deref for Allocated<'_, C> {
-    type Target = C;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<C> core::ops::DerefMut for Allocated<'_, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
     }
 }
 
