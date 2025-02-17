@@ -22,7 +22,7 @@ Initial development paid for by [Rocsys](https://www.rocsys.com/).
 
 ## Current state
 
-There's lots there already, but no enough is implemented to be useful to anyone yet.
+There's lots there already, but not enough is implemented to be useful to anyone yet.
 Rows with a bullet in the MVP column are required for a reasonable minimum implementation.
 The list is probably not exhaustive.
 
