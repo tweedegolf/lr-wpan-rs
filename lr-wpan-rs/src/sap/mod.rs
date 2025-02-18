@@ -1,3 +1,5 @@
+use core::fmt::Debug;
+
 use associate::{AssociateConfirm, AssociateIndication, AssociateRequest, AssociateResponse};
 use beacon_notify::BeaconNotifyIndication;
 use calibrate::{CalibrateConfirm, CalibrateRequest};
@@ -19,6 +21,7 @@ use start::{StartConfirm, StartRequest};
 use sync::{SyncLossIndication, SyncRequest};
 
 use crate::{
+    allocation::Allocation,
     time::Instant,
     wire::{
         beacon::SuperframeSpecification,
@@ -153,7 +156,7 @@ impl Default for SecurityInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanDescriptor {
     /// The address of the coordinator as specified in the received beacon frame.
     pub coord_address: Address,
@@ -181,32 +184,23 @@ pub struct PanDescriptor {
     pub code_list: (),
 }
 
-impl PartialEq for PanDescriptor {
-    fn eq(&self, other: &Self) -> bool {
-        #[expect(clippy::unit_cmp, reason = "Might not be unit in future")]
-        let code_list_equal = self.code_list == other.code_list;
-
-        self.coord_address == other.coord_address
-            && self.channel_number == other.channel_number
-            && self.channel_page == other.channel_page
-            && self.super_frame_spec == other.super_frame_spec
-            && self.gts_permit == other.gts_permit
-            && self.link_quality == other.link_quality
-            && self.timestamp == other.timestamp
-            && self.security_info == other.security_info
-            && code_list_equal
-            && match (self.security_status, other.security_status) {
-                (None, None) => true,
-                (None, Some(_)) => false,
-                (Some(_), None) => false,
-                (Some(l), Some(r)) => core::mem::discriminant(&l) == core::mem::discriminant(&r),
-            }
-    }
-}
+#[allow(private_bounds)]
+pub trait Request: DynamicRequest {}
 
 #[allow(private_bounds)]
-pub trait Request: From<RequestValue> + Into<RequestValue> {
+pub trait DynamicRequest: From<RequestValue> + Into<RequestValue> {
     type Confirm: From<ConfirmValue> + Into<ConfirmValue>;
+    type AllocationElement;
+
+    /// Attach an allocation to the request. This can be used to have a dynamic buffer in the request or confirm.
+    ///
+    /// # Safety
+    ///
+    /// The allocation is logically 'owned' by both the request and the confirm, and as such must live as least as long as both
+    unsafe fn attach_allocation(&mut self, allocation: Allocation<Self::AllocationElement>) {
+        let _ = allocation;
+        unimplemented!()
+    }
 }
 
 pub(crate) enum RequestValue {

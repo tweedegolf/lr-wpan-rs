@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 
 /// The MCPS-PURGE.request primitive allows the next higher layer to purge an MSDU from the transaction queue.
 ///
@@ -21,9 +21,12 @@ impl From<RequestValue> for PurgeRequest {
     }
 }
 
-impl Request for PurgeRequest {
+impl DynamicRequest for PurgeRequest {
     type Confirm = PurgeConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for PurgeRequest {}
 
 /// The MCPS-PURGE.confirm primitive allows the MAC sublayer to notify the next higher layer of the
 /// success of its request to purge an MSDU from the transaction queue.

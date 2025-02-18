@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 
 /// The MLME-RESET.request primitive is used by the next higher layer to request that the MLME performs a
 /// reset operation.
@@ -24,9 +24,12 @@ impl From<RequestValue> for ResetRequest {
     }
 }
 
-impl Request for ResetRequest {
+impl DynamicRequest for ResetRequest {
     type Confirm = ResetConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for ResetRequest {}
 
 /// The MLME-RESET.confirm primitive reports the results of the reset operation.
 ///

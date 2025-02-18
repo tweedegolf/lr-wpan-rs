@@ -1,6 +1,10 @@
 use crate::{
+    allocation::{Allocated, Allocation},
     reqresp::ReqResp,
-    sap::{ConfirmValue, Indication, IndicationValue, Request, RequestValue, ResponseValue},
+    sap::{
+        ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue,
+        ResponseValue,
+    },
 };
 
 /// The main interface to the MAC layer. It can be used to make requests and receive indications
@@ -25,6 +29,35 @@ impl MacCommander {
             .request(request.into())
             .await
             .into()
+    }
+
+    /// Make a request to the MAC layer. The typed confirm response is returned.
+    /// This API is cancel-safe, though the request may not have been sent at the point of cancellation.
+    pub async fn request_with_allocation<'a, R: DynamicRequest>(
+        &self,
+        mut request: R,
+        allocation: &'a mut [R::AllocationElement],
+    ) -> Allocated<'a, R::Confirm>
+    where
+        R::Confirm: 'a,
+    {
+        unsafe {
+            request.attach_allocation(Allocation {
+                ptr: allocation.as_mut_ptr(),
+                len: allocation.len(),
+            });
+        }
+        // To make safety easier, shadow the reference so we can't touch it anymore
+        #[expect(unused)]
+        let allocation = ();
+
+        let confirm = self
+            .request_confirm_channel
+            .request(request.into())
+            .await
+            .into();
+
+        Allocated::new(confirm)
     }
 
     /// Wait until an indication is received. The indication must be responded to using the returned [IndicationResponder].
@@ -116,7 +149,7 @@ pub struct RequestResponder<'a, T> {
 }
 
 impl<'a> RequestResponder<'a, RequestValue> {
-    pub fn into_concrete<U: Request>(self) -> RequestResponder<'a, U> {
+    pub fn into_concrete<U: DynamicRequest>(self) -> RequestResponder<'a, U> {
         let Self {
             commander,
             request,
@@ -130,7 +163,7 @@ impl<'a> RequestResponder<'a, RequestValue> {
     }
 }
 
-impl<T: Request> RequestResponder<'_, T> {
+impl<T: DynamicRequest> RequestResponder<'_, T> {
     pub fn respond(self, response: T::Confirm) {
         self.commander
             .request_confirm_channel

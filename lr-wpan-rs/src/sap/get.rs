@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 use crate::pib::PibValue;
 
 /// The MLME-GET.request primitive requests information about a given PIB attribute.
@@ -21,9 +21,12 @@ impl From<RequestValue> for GetRequest {
     }
 }
 
-impl Request for GetRequest {
+impl DynamicRequest for GetRequest {
     type Confirm = GetConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for GetRequest {}
 
 /// The MLME-GET.confirm primitive reports the results of an information request from the PIB.
 ///

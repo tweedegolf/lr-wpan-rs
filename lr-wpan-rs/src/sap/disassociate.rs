@@ -1,5 +1,6 @@
 use super::{
-    ConfirmValue, Indication, IndicationValue, Request, RequestValue, SecurityInfo, Status,
+    ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo,
+    Status,
 };
 use crate::wire::{command::DisassociationReason, Address, ExtendedAddress};
 
@@ -46,9 +47,12 @@ impl From<RequestValue> for DisassociateRequest {
     }
 }
 
-impl Request for DisassociateRequest {
+impl DynamicRequest for DisassociateRequest {
     type Confirm = DisassociateConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for DisassociateRequest {}
 
 /// The MLME-DISASSOCIATE.indication primitive is used to indicate the reception of a disassociation
 /// notification command.

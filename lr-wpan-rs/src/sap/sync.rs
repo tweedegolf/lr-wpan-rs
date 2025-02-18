@@ -1,4 +1,4 @@
-use super::{Indication, IndicationValue, Request, RequestValue, SecurityInfo};
+use super::{DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo};
 use crate::wire::PanId;
 
 /// The MLME-SYNC.request primitive requests to synchronize with the coordinator by acquiring and, if
@@ -34,9 +34,12 @@ impl From<RequestValue> for SyncRequest {
     }
 }
 
-impl Request for SyncRequest {
+impl DynamicRequest for SyncRequest {
     type Confirm = ();
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for SyncRequest {}
 
 /// The MLME-SYNC-LOSS.indication primitive indicates the loss of synchronization with a coordinator.
 ///

@@ -619,7 +619,7 @@ where
 }
 
 /// Errors that can occur while performing security operations on frames
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SecurityError {
     /// Security is not enabled for this frame
     SecurityNotEnabled,

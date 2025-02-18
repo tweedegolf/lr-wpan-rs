@@ -1,4 +1,4 @@
-use super::{ConfirmValue, Request, RequestValue, Status};
+use super::{ConfirmValue, DynamicRequest, Request, RequestValue, Status};
 use crate::time::{Duration, Instant};
 
 /// The MLME-RX-ENABLE.request primitive allows the next higher layer to request that the receiver is either
@@ -81,9 +81,12 @@ impl From<RequestValue> for RxEnableRequest {
     }
 }
 
-impl Request for RxEnableRequest {
+impl DynamicRequest for RxEnableRequest {
     type Confirm = RxEnableConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for RxEnableRequest {}
 
 /// The MLME-RX-ENABLE.confirm primitive reports the results of the attempt to enable or disable the receiver.
 ///

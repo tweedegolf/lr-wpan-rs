@@ -1,6 +1,6 @@
 use super::{
-    ConfirmValue, Indication, IndicationValue, Request, RequestValue, ResponseValue, SecurityInfo,
-    Status,
+    ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue,
+    ResponseValue, SecurityInfo, Status,
 };
 use crate::wire::{
     command::{AssociationStatus, CapabilityInformation},
@@ -40,9 +40,12 @@ impl From<RequestValue> for AssociateRequest {
     }
 }
 
-impl Request for AssociateRequest {
+impl DynamicRequest for AssociateRequest {
     type Confirm = AssociateConfirm;
+    type AllocationElement = core::convert::Infallible;
 }
+
+impl Request for AssociateRequest {}
 
 /// The MLME-ASSOCIATE.indication primitive is used to indicate the reception of an association request
 /// command.
