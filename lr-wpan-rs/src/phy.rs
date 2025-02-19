@@ -33,7 +33,7 @@ pub trait Phy {
     /// - The `data` must be a valid MAC frame.
     /// - If `send_time` is some, then that must be the time at which the data is sent. This must be done as accurately as possible.
     /// - If `ranging` is true, then the ranging bit must be set.
-    /// - If `use_csma` is true, then the carrier sense mechanism should be used. If the channel is busy, then the send is aborted and [SendResult::ChannelBusy] is returned
+    /// - If `use_csma` is true, then the carrier sense mechanism should be used. If the channel is busy, then the send is aborted and [SendResult::ChannelAccessFailure] is returned
     /// - The `continuation` specifies what the radio should do after the transmission
     ///
     /// The actual time the data frame was sent is returned. This needs to be accurate, especially when `ranging` is true

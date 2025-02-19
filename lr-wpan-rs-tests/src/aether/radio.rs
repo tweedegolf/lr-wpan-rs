@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Receiver;
 
 use crate::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId};
 
-/// Single radio connected to an [`Aether`]
+/// Single radio connected to an [`super::Aether`]
 #[derive(Debug)]
 pub struct AetherRadio {
     pub(super) inner: Arc<Mutex<AetherInner>>,
