@@ -5,6 +5,7 @@ use beacon_notify::BeaconNotifyIndication;
 use calibrate::{CalibrateConfirm, CalibrateRequest};
 use comm_status::CommStatusIndication;
 use data::{DataConfirm, DataIndication, DataRequest};
+use derive_more::Display;
 use disassociate::{DisassociateConfirm, DisassociateIndication, DisassociateRequest};
 use dps::{DpsConfirm, DpsIndication, DpsRequest};
 use get::{GetConfirm, GetRequest};
@@ -54,7 +55,8 @@ pub mod sounding;
 pub mod start;
 pub mod sync;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum Status {
     #[default]
     Success,
@@ -93,6 +95,15 @@ pub enum Status {
     InvalidHandle,
     PhyError,
     ReadOnly,
+}
+
+impl Status {
+    pub fn unwrap(&self) {
+        match self {
+            Status::Success => {}
+            s => panic!("Called `Status::unwrap()` on a `{}` value", s),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -447,6 +458,7 @@ pub trait Indication: From<IndicationValue> + Into<IndicationValue> {
     type Response: From<ResponseValue> + Into<ResponseValue>;
 }
 
+#[derive(Debug)]
 pub enum IndicationValue {
     Associate(AssociateIndication),
     Disassociate(DisassociateIndication),

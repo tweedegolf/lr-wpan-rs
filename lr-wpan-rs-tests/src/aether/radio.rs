@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use log::trace;
 use lr_wpan_rs::{
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::{PhyPib, PhyPibWrite},
@@ -51,6 +52,8 @@ impl Phy for AetherRadio {
     const MODULATION: ModulationType = ModulationType::BPSK;
 
     async fn reset(&mut self) -> Result<(), Self::Error> {
+        trace!("Radio reset {:?}", self.node_id);
+
         self.stop_receive().await?;
         let new_pib = PhyPib::unspecified_new();
         self.with_node(|node| {
@@ -74,8 +77,10 @@ impl Phy for AetherRadio {
         send_time: Option<Instant>,
         _ranging: bool,
         _use_csma: bool,
-        _continuation: SendContinuation,
+        continuation: SendContinuation,
     ) -> Result<SendResult, Self::Error> {
+        trace!("Radio send {:?}", self.node_id);
+
         let now = send_time
             .unwrap_or_else(|| std::time::Instant::from(tokio::time::Instant::now()).into());
         tokio::time::sleep_until(now.into_std().into()).await;
@@ -84,11 +89,19 @@ impl Phy for AetherRadio {
         let channel = self.local_pib.current_channel;
         self.aether().send(AirPacket::new(data, now, channel));
 
+        match continuation {
+            SendContinuation::Idle => {}
+            SendContinuation::WaitForResponse { .. } => todo!(),
+            SendContinuation::ReceiveContinuous => self.start_receive().await?,
+        }
+
         // TODO: Handle congestion
         Ok(SendResult::Success(now))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
+        trace!("Radio start_receive {:?}", self.node_id);
+
         self.with_node(|node| {
             node.rx_enable = true;
         });
@@ -97,6 +110,8 @@ impl Phy for AetherRadio {
     }
 
     async fn stop_receive(&mut self) -> Result<(), Self::Error> {
+        trace!("Radio stop_receive {:?}", self.node_id);
+
         self.with_node(|node| {
             node.rx_enable = false;
         });
@@ -134,6 +149,8 @@ impl Phy for AetherRadio {
         &mut self,
         ctx: Self::ProcessingContext,
     ) -> Result<Option<ReceivedMessage>, Self::Error> {
+        trace!("Radio process {:?}", self.node_id);
+
         Ok(Some(ctx))
     }
 

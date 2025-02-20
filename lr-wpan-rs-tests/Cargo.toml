@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lr-wpan-rs = { path = "../lr-wpan-rs", features = ["std"] }
+lr-wpan-rs = { path = "../lr-wpan-rs", features = ["std", "log-04"] }
 pcap-file = { version = "2.0.0" }
 log = { version = "0.4.22" }
 tokio = { version = "1.41.0", default-features = false, features = ["time", "test-util"] }

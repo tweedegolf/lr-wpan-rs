@@ -227,7 +227,7 @@ impl ScanProcess<'_> {
                     .remove(self.skipped_channels);
             }
             ScanAction::Finish => {
-                info!("Scan has been finished!")
+                debug!("Scan has been finished!")
             }
         }
     }

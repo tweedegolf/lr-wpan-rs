@@ -2,9 +2,12 @@ use super::{
     ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue,
     ResponseValue, SecurityInfo, Status,
 };
-use crate::wire::{
-    command::{AssociationStatus, CapabilityInformation},
-    Address, ExtendedAddress, ShortAddress,
+use crate::{
+    wire::{
+        command::{AssociationStatus, CapabilityInformation},
+        Address, ExtendedAddress, ShortAddress,
+    },
+    ChannelPage,
 };
 
 /// The MLME-ASSOCIATE.request primitive is used by a device to request an association with a coordinator.
@@ -21,7 +24,7 @@ pub struct AssociateRequest {
     /// The channel number on which to attempt association.
     pub channel_number: u8,
     /// The channel page on which to attempt association.
-    pub channel_page: u8,
+    pub channel_page: ChannelPage,
     /// - The coordinator addressing mode for this primitive and subsequent MPDU.
     /// - The identifier of the PAN with which to associate.
     /// - The address of the coordinator with which to associate.
