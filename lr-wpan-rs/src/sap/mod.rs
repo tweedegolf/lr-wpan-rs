@@ -95,6 +95,15 @@ pub enum Status {
     ReadOnly,
 }
 
+impl Status {
+    pub fn unwrap(&self) {
+        match self {
+            Status::Success => {},
+            s => panic!("Called `Status::unwrap()` on a `{s:?}` value"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SecurityInfo {
     pub security_level: SecurityLevel,
@@ -447,6 +456,7 @@ pub trait Indication: From<IndicationValue> + Into<IndicationValue> {
     type Response: From<ResponseValue> + Into<ResponseValue>;
 }
 
+#[derive(Debug)]
 pub enum IndicationValue {
     Associate(AssociateIndication),
     Disassociate(DisassociateIndication),

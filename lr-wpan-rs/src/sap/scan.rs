@@ -129,6 +129,19 @@ impl ScanConfirm {
             .iter()
             .filter_map(|pdesc| pdesc.as_ref())
     }
+
+    /// The list of PAN descriptors, one for
+    /// each beacon found during an active or
+    /// passive scan if macAutoRequest is set
+    /// to TRUE. This parameter is null for
+    /// ED and orphan scans or when macAutoRequest is set to FALSE during an
+    /// active or passive scan.
+    pub fn pan_descriptor_list_mut(&mut self) -> impl Iterator<Item = &mut PanDescriptor> + '_ {
+        self.pan_descriptor_list_allocation
+            .as_slice_mut()
+            .iter_mut()
+            .filter_map(|pdesc| pdesc.as_mut())
+    }
 }
 
 impl From<ConfirmValue> for ScanConfirm {
@@ -141,6 +154,7 @@ impl From<ConfirmValue> for ScanConfirm {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "defmt-03", derive(Defmt::Format))]
 pub enum ScanType {
     Ed,
     #[default]

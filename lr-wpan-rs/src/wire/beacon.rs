@@ -20,6 +20,16 @@ pub enum BeaconOrder {
     OnDemand,
 }
 
+impl BeaconOrder {
+    /// Returns `true` if the beacon order is [`OnDemand`].
+    ///
+    /// [`OnDemand`]: BeaconOrder::OnDemand
+    #[must_use]
+    pub fn is_on_demand(&self) -> bool {
+        matches!(self, Self::OnDemand)
+    }
+}
+
 impl From<u8> for BeaconOrder {
     /// Convert u8 to beacon order
     fn from(value: u8) -> Self {
@@ -50,6 +60,16 @@ pub enum SuperframeOrder {
     SuperframeOrder(u8),
     /// No superframes are sent
     Inactive,
+}
+
+impl SuperframeOrder {
+    /// Returns `true` if the superframe order is [`Inactive`].
+    ///
+    /// [`Inactive`]: SuperframeOrder::Inactive
+    #[must_use]
+    pub fn is_inactive(&self) -> bool {
+        matches!(self, Self::Inactive)
+    }
 }
 
 impl From<u8> for SuperframeOrder {

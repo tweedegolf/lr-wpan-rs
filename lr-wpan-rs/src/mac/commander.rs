@@ -24,6 +24,7 @@ impl MacCommander {
 
     /// Make a request to the MAC layer. The typed confirm response is returned.
     /// This API is cancel-safe, though the request may not have been sent at the point of cancellation.
+    #[must_use]
     pub async fn request<R: Request>(&self, request: R) -> R::Confirm {
         self.request_confirm_channel
             .request(request.into())
@@ -33,6 +34,7 @@ impl MacCommander {
 
     /// Make a request to the MAC layer. The typed confirm response is returned.
     /// This API is cancel-safe, though the request may not have been sent at the point of cancellation.
+    #[must_use]
     pub async fn request_with_allocation<'a, R: DynamicRequest>(
         &self,
         mut request: R,
