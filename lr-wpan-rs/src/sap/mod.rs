@@ -98,7 +98,7 @@ pub enum Status {
 impl Status {
     pub fn unwrap(&self) {
         match self {
-            Status::Success => {},
+            Status::Success => {}
             s => panic!("Called `Status::unwrap()` on a `{s:?}` value"),
         }
     }

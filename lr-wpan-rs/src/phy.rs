@@ -51,7 +51,7 @@ pub trait Phy {
     /// It will continuously receive messages according to the PIB settings.
     /// When PIB attributes are updated, the receiver must reflect them immediately,
     /// even if that disrupts the operation for a little bit.
-    /// 
+    ///
     /// If this function is called when the radio is already receiving, then nothing should happen and the
     /// radio should continue receiving.
     ///
