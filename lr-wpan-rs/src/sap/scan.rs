@@ -154,7 +154,7 @@ impl From<ConfirmValue> for ScanConfirm {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "defmt-03", derive(Defmt::Format))]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum ScanType {
     Ed,
     #[default]
