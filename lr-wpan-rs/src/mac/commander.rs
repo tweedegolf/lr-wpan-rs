@@ -1,16 +1,18 @@
 use crate::{
     allocation::{Allocated, Allocation},
-    reqresp::ReqResp,
+    reqresp::{ReqResp, RequestFuture},
     sap::{
         ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue,
         ResponseValue,
     },
 };
 
+pub const CHANNEL_SIZE: usize = 4;
+
 /// The main interface to the MAC layer. It can be used to make requests and receive indications
 pub struct MacCommander {
-    request_confirm_channel: ReqResp<RequestValue, ConfirmValue, 4>,
-    indication_response_channel: ReqResp<IndicationValue, ResponseValue, 4>,
+    request_confirm_channel: ReqResp<RequestValue, ConfirmValue, CHANNEL_SIZE>,
+    indication_response_channel: ReqResp<IndicationValue, ResponseValue, CHANNEL_SIZE>,
 }
 
 impl MacCommander {
@@ -85,8 +87,12 @@ impl Default for MacCommander {
     }
 }
 
+pub type IndicateIndirectFuture<'a> =
+    RequestFuture<'a, IndicationValue, ResponseValue, CHANNEL_SIZE>;
+
 pub(crate) struct MacHandler<'a> {
     commander: &'a MacCommander,
+
 }
 
 impl MacHandler<'_> {
@@ -97,6 +103,14 @@ impl MacHandler<'_> {
             .request(indication.into())
             .await
             .into()
+    }
+
+    /// Send an indication, but don't immediately wait on it.
+    /// Instead the response wait is put in a buffer so it can be dealt with later.
+    pub fn indicate_indirect<I: Indication>(&self, indication: I) -> IndicateIndirectFuture<'_> {
+        self.commander
+            .indication_response_channel
+            .request(indication.into())
     }
 
     pub async fn wait_for_request(&self) -> RequestResponder<'_, RequestValue> {

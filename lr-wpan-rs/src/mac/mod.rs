@@ -837,5 +837,25 @@ async fn process_message<P: Phy>(
         });
     }
 
+    match frame.content {
+        FrameContent::Command(Command::AssociationRequest(capability_info)) => {
+            match frame.header.source {
+                Some(Address::Extended(_, device_address)) => {
+                    mlme_associate::process_received_associate_request(
+                        mac_handler,
+                        device_address,
+                        capability_info,
+                    )
+                    .await
+                }
+                _ => warn!("Association request came from frame without correct source field"),
+            }
+        }
+        content => warn!(
+            "Received frame has content we don't yet process: {}",
+            content
+        ),
+    }
+
     next_event
 }

@@ -19,6 +19,7 @@ pub mod security;
 use byte::{ctx::Bytes, BytesExt, TryRead, TryWrite, LE};
 use ccm::aead::generic_array::typenum::consts::U16;
 use cipher::{BlockCipher, BlockEncrypt, NewBlockCipher};
+use derive_more::Display;
 use header::FrameType;
 pub use header::Header;
 
@@ -387,8 +388,9 @@ impl Default for FooterMode {
 }
 
 /// Content of a frame
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Display)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+#[display("{self:?}")]
 pub enum FrameContent {
     /// Beacon frame content
     Beacon(Beacon),
