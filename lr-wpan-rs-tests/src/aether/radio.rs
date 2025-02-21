@@ -98,6 +98,8 @@ impl Phy for AetherRadio {
             .await;
         now = send_time;
 
+        trace!("Radio send {:?} at: {}", self.node_id, now);
+
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
         self.aether().send(AirPacket::new(data, now, channel));
@@ -142,7 +144,11 @@ impl Phy for AetherRadio {
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio start_receive {:?}", self.node_id);
+        trace!(
+            "Radio start_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = true;
@@ -152,7 +158,11 @@ impl Phy for AetherRadio {
     }
 
     async fn stop_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio stop_receive {:?}", self.node_id);
+        trace!(
+            "Radio stop_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = false;

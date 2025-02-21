@@ -1,6 +1,8 @@
+use core::pin::Pin;
+
 use super::{
     callback::DataRequestCallback,
-    commander::{MacHandler, RequestResponder},
+    commander::{IndirectIndicationCollection, MacHandler, RequestResponder},
     state::{DataRequestMode, MacState, ScheduledDataRequest},
 };
 use crate::{
@@ -10,9 +12,12 @@ use crate::{
         associate::{AssociateConfirm, AssociateIndication, AssociateRequest},
         SecurityInfo, Status,
     },
+    time::{Duration, Instant},
     wire::{
-        command::{CapabilityInformation, Command}, Address, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header, PanId, ShortAddress
-    }, DeviceAddress,
+        command::{CapabilityInformation, Command},
+        Address, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
+        ShortAddress,
+    },
 };
 
 pub async fn process_associate_request<'a>(
@@ -173,12 +178,26 @@ pub async fn process_associate_request<'a>(
 }
 
 // Received from the radio, not as an MLME request
-pub async fn process_received_associate_request(mac_handler: &MacHandler<'_>, device_address: ExtendedAddress, capability_information: CapabilityInformation) {
+pub async fn process_received_associate_request<'a>(
+    mac_handler: &MacHandler<'a>,
+    mac_pib: &MacPib,
+    indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
+    device_address: ExtendedAddress,
+    capability_information: CapabilityInformation,
+    message_timestamp: Instant,
+    symbol_duration: Duration,
+) {
     let indirect_response = mac_handler.indicate_indirect(AssociateIndication {
         device_address,
         capability_information,
         security_info: SecurityInfo::new_none_security(),
     });
 
-    // TODO: Store the indirect_response and await it later
+    indirect_indications.push(
+        indirect_response,
+        message_timestamp
+            + symbol_duration
+                * crate::consts::BASE_SUPERFRAME_DURATION as i64
+                * mac_pib.response_wait_time as i64,
+    );
 }

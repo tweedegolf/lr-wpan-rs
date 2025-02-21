@@ -31,7 +31,7 @@ pub struct MacState<'a> {
     pub current_gts: GuaranteedTimeSlotInformation,
     /// Are we currently in our own superframe?
     pub own_superframe_active: bool,
-
+    /// If some, contains the state of the current scan being done
     pub current_scan_process: Option<ScanProcess<'a>>,
 
     security_context: SecurityContext<Unimplemented, Unimplemented>,
