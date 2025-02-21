@@ -1,19 +1,18 @@
 use super::{
     callback::DataRequestCallback,
-    commander::RequestResponder,
+    commander::{MacHandler, RequestResponder},
     state::{DataRequestMode, MacState, ScheduledDataRequest},
 };
 use crate::{
     phy::{Phy, SendContinuation, SendResult},
     pib::MacPib,
     sap::{
-        associate::{AssociateConfirm, AssociateRequest},
+        associate::{AssociateConfirm, AssociateIndication, AssociateRequest},
         SecurityInfo, Status,
     },
     wire::{
-        command::Command, Address, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
-        ShortAddress,
-    },
+        command::{CapabilityInformation, Command}, Address, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header, PanId, ShortAddress
+    }, DeviceAddress,
 };
 
 pub async fn process_associate_request<'a>(
@@ -152,7 +151,7 @@ pub async fn process_associate_request<'a>(
         return;
     };
 
-    debug!("Association procedure now waiting until");
+    debug!("Association procedure now waiting until the response can be requested");
 
     // We have received the ack to our association request.
     // Now we must wait and request our data later.
@@ -171,4 +170,15 @@ pub async fn process_associate_request<'a>(
             used_security_info: responder.request.security_info,
             callback: DataRequestCallback::AssociationProcedure(responder),
         });
+}
+
+// Received from the radio, not as an MLME request
+pub async fn process_received_associate_request(mac_handler: &MacHandler<'_>, device_address: ExtendedAddress, capability_information: CapabilityInformation) {
+    let indirect_response = mac_handler.indicate_indirect(AssociateIndication {
+        device_address,
+        capability_information,
+        security_info: SecurityInfo::new_none_security(),
+    });
+
+    // TODO: Store the indirect_response and await it later
 }

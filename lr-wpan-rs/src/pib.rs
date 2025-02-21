@@ -522,7 +522,7 @@ impl MacPib {
                 min_be: 0,
                 pan_id: PanId::broadcast(),
                 promiscuous_mode: false,
-                response_wait_time: 2,
+                response_wait_time: 64,
                 rx_on_when_idle: false,
                 security_enabled: false,
                 short_address: ShortAddress::BROADCAST,
