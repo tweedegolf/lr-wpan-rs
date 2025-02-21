@@ -3,9 +3,9 @@ use core::fmt::{Debug, Display};
 use crate::{
     phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::MacPib,
-    sap::{scan::ScanType, RequestValue, Status},
+    sap::{associate::AssociateIndication, scan::ScanType, RequestValue, Status},
     time::{DelayNsExt, Duration, Instant},
-    wire::command::Command,
+    wire::{command::Command, Address},
 };
 
 mod callback;
@@ -287,9 +287,63 @@ async fn handle_radio_event<P: Phy>(
                 )
                 .await
             }
+            RadioEvent::SendAck { receive_time, seq } => {
+                send_ack(phy, mac_pib, mac_state, receive_time, seq).await
+            }
         }
 
         break;
+    }
+}
+
+async fn send_ack(
+    phy: &mut impl Phy,
+    mac_pib: &mut MacPib,
+    mac_state: &mut MacState<'_>,
+    receive_time: Instant,
+    seq: u8,
+) {
+    use crate::wire;
+
+    let data = mac_state.serialize_frame(Frame {
+        header: wire::Header {
+            frame_type: wire::FrameType::Acknowledgement,
+            frame_pending: false, // TODO: Make sure it's set when required
+            ack_request: false,
+            pan_id_compress: false,
+            seq_no_suppress: false,
+            ie_present: false,
+            version: wire::FrameVersion::Ieee802154_2003,
+            seq,
+            destination: None,
+            source: None,
+            auxiliary_security_header: None,
+        },
+        content: wire::FrameContent::Acknowledgement,
+        payload: &[],
+        footer: [0, 0],
+    });
+
+    trace!("Sending ack");
+    match phy
+        .send(
+            &data,
+            Some(receive_time + phy.symbol_duration() * mac_pib.sifs_period as i64), // TODO: Actually schedule this according to the rules (5.1.6.4.2)
+            false,
+            false,
+            SendContinuation::Idle,
+        )
+        .await
+    {
+        Ok(SendResult::Success(_, _)) => {
+            // Cool, continue
+        }
+        Ok(SendResult::ChannelAccessFailure) => {
+            unreachable!();
+        }
+        Err(e) => {
+            error!("Could not send an ack: {}", e);
+        }
     }
 }
 
@@ -567,12 +621,24 @@ async fn send_beacon(
 enum RadioEvent<P: Phy> {
     Error,
     BeaconRequested,
-    OwnSuperframeStart { start_time: Instant },
-    OwnSuperframeStartMissed { start_time: Instant },
+    OwnSuperframeStart {
+        start_time: Instant,
+    },
+    OwnSuperframeStartMissed {
+        start_time: Instant,
+    },
     OwnSuperframeEnd,
-    PhyWaitDone { context: P::ProcessingContext },
+    PhyWaitDone {
+        context: P::ProcessingContext,
+    },
     ScanAction(ScanAction),
     SendScheduledIndependentDataRequest,
+    SendAck {
+        /// The time the message we're acking was received
+        receive_time: Instant,
+        /// The sequence number of the received message
+        seq: u8,
+    },
 }
 
 async fn wait_for_own_superframe_start<P: Phy>(
@@ -756,7 +822,20 @@ async fn process_message<P: Phy>(
                 mac_handler,
             )
             .await;
+        return None;
     }
 
-    None
+    let mut next_event = None;
+
+    // Filtering has been done, so we know this is meant for us.
+    // If it needs to be acked, we should do it now.
+    // TODO: Look at the exact rules, because this is currently likely not correct
+    if frame.header.ack_request {
+        next_event = Some(RadioEvent::SendAck {
+            receive_time: message.timestamp,
+            seq: frame.header.seq,
+        });
+    }
+
+    next_event
 }

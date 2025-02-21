@@ -461,8 +461,7 @@ pub struct MacPib {
     /// As defined in 8.1.3
     #[doc(alias = "macLIFSPeriod")]
     pub lifs_period: u8,
-    /// The minimum time forming a SIFS
-    /// period.
+    /// The minimum time in number of symbols forming a SIFS period.
     ///
     /// ## Range
     /// As defined in 8.1.3
