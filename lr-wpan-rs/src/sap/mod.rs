@@ -95,6 +95,7 @@ pub enum Status {
     InvalidHandle,
     PhyError,
     ReadOnly,
+    AlreadyAssociated,
 }
 
 impl Status {

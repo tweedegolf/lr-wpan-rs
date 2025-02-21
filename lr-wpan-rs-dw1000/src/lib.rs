@@ -286,7 +286,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
             self.start_receive().await?;
         }
 
-        Ok(lr_wpan_rs::phy::SendResult::Success(tx_time))
+        Ok(lr_wpan_rs::phy::SendResult::Success(tx_time, None))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
@@ -493,8 +493,8 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
         }
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&lr_wpan_rs::pib::PhyPib, Self::Error> {
-        Ok(&self.phy_pib)
+    fn get_phy_pib(&mut self) -> &lr_wpan_rs::pib::PhyPib {
+        &self.phy_pib
     }
 }
 

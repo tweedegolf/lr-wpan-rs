@@ -2,7 +2,7 @@ use super::{commander::RequestResponder, state::MacState};
 use crate::{
     phy::{Phy, SendResult},
     pib::MacPib,
-    sap::start::StartRequest,
+    sap::{associate::AssociateRequest, start::StartRequest},
 };
 
 /// A callback that will be ran when a message has been sent.
@@ -29,6 +29,18 @@ impl<'a> SendCallback<'a> {
                 )
                 .await;
             }
+        }
+    }
+}
+
+pub enum DataRequestCallback<'a> {
+    AssociationProcedure(RequestResponder<'a, AssociateRequest>),
+}
+
+impl DataRequestCallback<'_> {
+    pub async fn run(self) {
+        match self {
+            DataRequestCallback::AssociationProcedure(_request_responder) => todo!(),
         }
     }
 }

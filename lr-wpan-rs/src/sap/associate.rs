@@ -116,9 +116,9 @@ impl From<ResponseValue> for AssociateResponse {
 pub struct AssociateConfirm {
     /// The short device address allocated by the
     /// coordinator on successful association. This
-    /// parameter is set to 0xffff or None if the association
+    /// parameter is set to 0xffff if the association
     /// was unsuccessful.
-    pub assoc_short_address: Option<ShortAddress>,
+    pub assoc_short_address: ShortAddress,
     pub status: Status,
     pub security_info: SecurityInfo,
 }

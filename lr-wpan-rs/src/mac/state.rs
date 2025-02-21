@@ -2,10 +2,14 @@ use arraydeque::ArrayDeque;
 use heapless::Vec;
 use rand_core::RngCore;
 
-use super::{callback::SendCallback, mlme_scan::ScanProcess, MacConfig};
+use super::{
+    callback::{DataRequestCallback, SendCallback},
+    mlme_scan::ScanProcess,
+    MacConfig,
+};
 use crate::{
     sap::SecurityInfo,
-    time::DelayNsExt,
+    time::{DelayNsExt, Instant},
     wire::{
         beacon::{GuaranteedTimeSlotInformation, PendingAddress},
         security::{default::Unimplemented, SecurityContext},
@@ -38,6 +42,7 @@ impl MacState<'_> {
         Self {
             message_scheduler: MessageScheduler {
                 scheduled_broadcasts: ArrayDeque::new(),
+                data_requests: Vec::new(),
             },
             beacon_security_info: Default::default(),
             coordinator_beacon_tracked: false,
@@ -105,6 +110,7 @@ pub struct MessageScheduler<'a> {
     ///
     /// The messages are sent using CSMA-CA.
     scheduled_broadcasts: ArrayDeque<ScheduledMessage<'a>, 4>,
+    data_requests: Vec<ScheduledDataRequest<'a>, 1>,
 }
 
 impl<'a> MessageScheduler<'a> {
@@ -148,11 +154,76 @@ impl<'a> MessageScheduler<'a> {
     pub fn get_pending_addresses(&self) -> PendingAddress {
         PendingAddress::new()
     }
+
+    pub fn schedule_data_request(&mut self, data_request: ScheduledDataRequest<'a>) {
+        if self.data_requests.push(data_request).is_err() {
+            panic!("Reached data request capacity")
+        }
+    }
+
+    pub fn get_scheduled_superframe_data_request(&self) -> Option<&ScheduledDataRequest<'a>> {
+        self.data_requests
+            .iter()
+            .find(|request| !request.mode.is_independent())
+    }
+
+    pub fn take_scheduled_superframe_data_request(&mut self) -> Option<ScheduledDataRequest<'a>> {
+        let (index, _) = self
+            .data_requests
+            .iter()
+            .enumerate()
+            .find(|(_, request)| !request.mode.is_independent())?;
+
+        Some(self.data_requests.remove(index))
+    }
+
+    pub fn get_scheduled_independent_data_request(&self) -> Option<&ScheduledDataRequest<'a>> {
+        self.data_requests
+            .iter()
+            .find(|request| request.mode.is_independent())
+    }
+
+    pub fn take_scheduled_independent_data_request(&mut self) -> Option<ScheduledDataRequest<'a>> {
+        let (index, _) = self
+            .data_requests
+            .iter()
+            .enumerate()
+            .find(|(_, request)| request.mode.is_independent())?;
+
+        Some(self.data_requests.remove(index))
+    }
 }
 
 pub struct ScheduledMessage<'a> {
     pub data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
     pub callback: SendCallback<'a>,
+}
+
+pub struct ScheduledDataRequest<'a> {
+    pub mode: DataRequestMode,
+    pub used_security_info: SecurityInfo,
+    pub callback: DataRequestCallback<'a>,
+}
+
+pub enum DataRequestMode {
+    /// The data request shall be sent in the CAP of the superframe
+    InSuperFrame,
+    /// The data request shall be sent without regard for beacons at the given timestamp
+    Independent {
+        /// The time at which the data request shall be sent.
+        /// If none, that means immediately (or when its turn started).
+        timestamp: Option<Instant>,
+    },
+}
+
+impl DataRequestMode {
+    /// Returns `true` if the data request mode is [`Independent`].
+    ///
+    /// [`Independent`]: DataRequestMode::Independent
+    #[must_use]
+    pub fn is_independent(&self) -> bool {
+        matches!(self, Self::Independent { .. })
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

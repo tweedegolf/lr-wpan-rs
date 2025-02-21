@@ -384,7 +384,7 @@ mod tests {
 
         bob.start_receive().await.unwrap();
 
-        let SendResult::Success(tx_time) = alice
+        let SendResult::Success(tx_time, _) = alice
             .send(&test_data, None, false, false, SendContinuation::Idle)
             .await
             .unwrap()

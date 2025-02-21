@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::{
+    pin::pin,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use async_channel::Receiver;
 use log::trace;
@@ -99,14 +102,43 @@ impl Phy for AetherRadio {
         let channel = self.local_pib.current_channel;
         self.aether().send(AirPacket::new(data, now, channel));
 
-        match continuation {
-            SendContinuation::Idle => {}
-            SendContinuation::WaitForResponse { .. } => todo!(),
-            SendContinuation::ReceiveContinuous => self.start_receive().await?,
-        }
+        let response = match continuation {
+            SendContinuation::Idle => None,
+            SendContinuation::WaitForResponse {
+                turnaround_time,
+                timeout,
+            } => {
+                tokio::time::sleep(turnaround_time.into_std()).await;
+                self.start_receive().await?;
+
+                let mut timeout = pin!(tokio::time::sleep(timeout.into_std()));
+
+                let response = loop {
+                    tokio::select! {
+                        _ = &mut timeout => {
+                            break None;
+                        }
+                        processing_context = self.wait() => {
+                            match self.process(processing_context?).await? {
+                                Some(received_message) => break Some(received_message),
+                                None => continue,
+                            }
+                        }
+                    }
+                };
+
+                self.stop_receive().await?;
+
+                response
+            }
+            SendContinuation::ReceiveContinuous => {
+                self.start_receive().await?;
+                None
+            }
+        };
 
         // TODO: Handle congestion
-        Ok(SendResult::Success(now))
+        Ok(SendResult::Success(now, response))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
@@ -181,8 +213,8 @@ impl Phy for AetherRadio {
         Ok(res)
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&PhyPib, Self::Error> {
-        Ok(&self.local_pib)
+    fn get_phy_pib(&mut self) -> &PhyPib {
+        &self.local_pib
     }
 }
 

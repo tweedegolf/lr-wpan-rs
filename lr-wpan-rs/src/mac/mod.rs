@@ -10,6 +10,7 @@ use crate::{
 
 mod callback;
 mod commander;
+mod mlme_associate;
 mod mlme_get;
 mod mlme_reset;
 mod mlme_scan;
@@ -21,17 +22,19 @@ use commander::MacHandler;
 pub use commander::{IndicationResponder, MacCommander};
 use embassy_futures::select::{select, Either};
 use futures::FutureExt;
+use mlme_associate::process_associate_request;
 use mlme_get::process_get_request;
 use mlme_reset::process_reset_request;
 use mlme_scan::{process_scan_request, ScanAction};
 use mlme_set::process_set_request;
 use mlme_start::process_start_request;
 use rand_core::RngCore;
-use state::{BeaconMode, MacState};
+use state::{BeaconMode, DataRequestMode, MacState, ScheduledDataRequest};
 
 use crate::wire::{ExtendedAddress, Frame, FrameContent, PanId, ShortAddress};
 
 const BEACON_PLANNING_HEADROOM: Duration = Duration::from_millis(20);
+const DATA_REQUEST_PLANNING_HEADROOM: Duration = Duration::from_millis(20);
 
 /// Run the MAC layer of the IEEE protocol.
 ///
@@ -79,7 +82,9 @@ async fn handle_request<'a, Rng: RngCore, Delay: DelayNsExt>(
     config: &mut MacConfig<Rng, Delay>,
 ) {
     match &responder.request {
-        RequestValue::Associate(_) => todo!(),
+        RequestValue::Associate(_) => {
+            process_associate_request(phy, mac_pib, mac_state, responder.into_concrete()).await
+        }
         RequestValue::Disassociate(_) => todo!(),
         RequestValue::Get(_) => {
             process_get_request(phy, &*mac_pib, responder.into_concrete()).await
@@ -196,6 +201,9 @@ async fn wait_for_radio_event<P: Phy>(
 
     let scan_action = wait_for_channel_scan_action(mac_state, current_time, delay.clone());
 
+    let independent_data_request =
+        wait_for_independent_data_request(mac_state, current_time, delay.clone());
+
     let phy_wait = phy.wait();
 
     futures::select_biased! {
@@ -215,6 +223,9 @@ async fn wait_for_radio_event<P: Phy>(
             event
         }
         event = scan_action.fuse() => {
+            event
+        }
+        event = independent_data_request.fuse() => {
             event
         }
     }
@@ -267,10 +278,23 @@ async fn handle_radio_event<P: Phy>(
             RadioEvent::ScanAction(scan_action) => {
                 perform_scan_action(scan_action, phy, mac_state, mac_pib).await
             }
+            RadioEvent::SendScheduledIndependentDataRequest => {
+                perform_data_request(
+                    mac_state
+                        .message_scheduler
+                        .take_scheduled_independent_data_request()
+                        .unwrap(),
+                )
+                .await
+            }
         }
 
         break;
     }
+}
+
+async fn perform_data_request(_data_request: ScheduledDataRequest<'_>) {
+    todo!()
 }
 
 async fn perform_scan_action(
@@ -353,7 +377,7 @@ async fn perform_scan_action(
                             )
                             .await
                         {
-                            Ok(SendResult::Success(_)) => {
+                            Ok(SendResult::Success(_, _)) => {
                                 // Cool, continue
                             }
                             Ok(SendResult::ChannelAccessFailure) => {
@@ -494,7 +518,7 @@ async fn send_beacon(
         )
         .await
     {
-        Ok(SendResult::Success(send_time)) => send_time,
+        Ok(SendResult::Success(send_time, _)) => send_time,
         Ok(SendResult::ChannelAccessFailure) => {
             warn!("Could not send beacon due to channel access failure");
             return;
@@ -548,6 +572,7 @@ enum RadioEvent<P: Phy> {
     OwnSuperframeEnd,
     PhyWaitDone { context: P::ProcessingContext },
     ScanAction(ScanAction),
+    SendScheduledIndependentDataRequest,
 }
 
 async fn wait_for_own_superframe_start<P: Phy>(
@@ -650,6 +675,34 @@ async fn wait_for_channel_scan_action<P: Phy>(
             let action = scan_process.wait_for_next_action(current_time, delay).await;
             RadioEvent::ScanAction(action)
         }
+        None => core::future::pending().await,
+    }
+}
+
+async fn wait_for_independent_data_request<P: Phy>(
+    mac_state: &MacState<'_>,
+    current_time: Instant,
+    mut delay: impl DelayNsExt,
+) -> RadioEvent<P> {
+    match mac_state
+        .message_scheduler
+        .get_scheduled_independent_data_request()
+    {
+        Some(ScheduledDataRequest {
+            mode:
+                DataRequestMode::Independent {
+                    timestamp: Some(send_time),
+                },
+            ..
+        }) => {
+            delay
+                .delay_duration(
+                    send_time.duration_since(current_time) - DATA_REQUEST_PLANNING_HEADROOM,
+                )
+                .await;
+            RadioEvent::SendScheduledIndependentDataRequest
+        }
+        Some(_) => RadioEvent::SendScheduledIndependentDataRequest,
         None => core::future::pending().await,
     }
 }
