@@ -387,7 +387,7 @@ mod tests {
 
         bob.start_receive().await.unwrap();
 
-        let SendResult::Success(tx_time) = alice
+        let SendResult::Success(tx_time, _) = alice
             .send(&test_data, None, false, false, SendContinuation::Idle)
             .await
             .unwrap()
@@ -433,7 +433,7 @@ mod tests {
             .send(b"Hello!", None, false, false, SendContinuation::Idle)
             .await
             .unwrap();
-        let SendResult::Success(tx_time) = tx_res else {
+        let SendResult::Success(tx_time, _) = tx_res else {
             panic!("Failed to send packet!")
         };
 

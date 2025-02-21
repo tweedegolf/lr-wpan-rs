@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::{
+    pin::pin,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use log::trace;
 use lr_wpan_rs::{
@@ -79,28 +82,61 @@ impl Phy for AetherRadio {
         _use_csma: bool,
         continuation: SendContinuation,
     ) -> Result<SendResult, Self::Error> {
-        trace!("Radio send {:?}", self.node_id);
-
         let now = send_time
             .unwrap_or_else(|| std::time::Instant::from(tokio::time::Instant::now()).into());
         tokio::time::sleep_until(now.into_std().into()).await;
+
+        trace!("Radio send {:?} at: {}", self.node_id, now);
 
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
         self.aether().send(AirPacket::new(data, now, channel));
 
-        match continuation {
-            SendContinuation::Idle => {}
-            SendContinuation::WaitForResponse { .. } => todo!(),
-            SendContinuation::ReceiveContinuous => self.start_receive().await?,
-        }
+        let response = match continuation {
+            SendContinuation::Idle => None,
+            SendContinuation::WaitForResponse {
+                turnaround_time,
+                timeout,
+            } => {
+                tokio::time::sleep(turnaround_time.into_std()).await;
+                self.start_receive().await?;
+
+                let mut timeout = pin!(tokio::time::sleep(timeout.into_std()));
+
+                let response = loop {
+                    tokio::select! {
+                        _ = &mut timeout => {
+                            break None;
+                        }
+                        processing_context = self.wait() => {
+                            match self.process(processing_context?).await? {
+                                Some(received_message) => break Some(received_message),
+                                None => continue,
+                            }
+                        }
+                    }
+                };
+
+                self.stop_receive().await?;
+
+                response
+            }
+            SendContinuation::ReceiveContinuous => {
+                self.start_receive().await?;
+                None
+            }
+        };
 
         // TODO: Handle congestion
-        Ok(SendResult::Success(now))
+        Ok(SendResult::Success(now, response))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio start_receive {:?}", self.node_id);
+        trace!(
+            "Radio start_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = true;
@@ -110,7 +146,11 @@ impl Phy for AetherRadio {
     }
 
     async fn stop_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio stop_receive {:?}", self.node_id);
+        trace!(
+            "Radio stop_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = false;
@@ -168,8 +208,8 @@ impl Phy for AetherRadio {
         Ok(res)
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&PhyPib, Self::Error> {
-        Ok(&self.local_pib)
+    fn get_phy_pib(&mut self) -> &PhyPib {
+        &self.local_pib
     }
 }
 
