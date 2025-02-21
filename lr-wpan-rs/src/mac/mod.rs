@@ -1,9 +1,12 @@
-use core::fmt::{Debug, Display};
+use core::{
+    fmt::{Debug, Display},
+    pin::Pin,
+};
 
 use crate::{
     phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::MacPib,
-    sap::{associate::AssociateIndication, scan::ScanType, RequestValue, Status},
+    sap::{scan::ScanType, RequestValue, Status},
     time::{DelayNsExt, Duration, Instant},
     wire::{command::Command, Address},
 };
@@ -18,9 +21,9 @@ mod mlme_set;
 mod mlme_start;
 mod state;
 
-use commander::MacHandler;
 pub use commander::{IndicationResponder, MacCommander};
-use embassy_futures::select::{select, Either};
+use commander::{IndirectIndicationCollection, MacHandler};
+use embassy_futures::select::{select3, Either3};
 use futures::FutureExt;
 use mlme_associate::process_associate_request;
 use mlme_get::process_get_request;
@@ -48,19 +51,40 @@ pub async fn run_mac_engine<'a, Rng: RngCore, Delay: DelayNsExt>(
     let handler = commander.get_handler();
     let mut mac_pib = MacPib::dummy_new();
     let mut mac_state = MacState::new(&config);
+    let mut indirect_indications = core::pin::pin!(IndirectIndicationCollection::new());
 
     loop {
-        let result = select(
-            wait_for_radio_event(&mut phy, &mut mac_pib, &mut mac_state, &mut config.delay),
+        let current_time = match phy.get_instant().await {
+            Ok(current_time) => current_time,
+            Err(e) => {
+                error!("Could not get the current time: {}", e);
+                continue;
+            }
+        };
+
+        let result = select3(
+            wait_for_radio_event(&mut phy, &mac_pib, &mac_state, &config.delay),
+            indirect_indications.as_mut().wait(current_time),
             handler.wait_for_request(),
         )
         .await;
 
         match result {
-            Either::First(event) => {
-                handle_radio_event(event, &mut phy, &mut mac_pib, &mut mac_state, &handler).await
+            Either3::First(event) => {
+                handle_radio_event(
+                    event,
+                    &mut phy,
+                    &mut mac_pib,
+                    &mut mac_state,
+                    &handler,
+                    indirect_indications.as_mut(),
+                )
+                .await
             }
-            Either::Second(responder) => {
+            Either3::Second(_indication_response_value) => {
+                todo!();
+            }
+            Either3::Third(responder) => {
                 handle_request(
                     responder,
                     &mut phy,
@@ -156,9 +180,9 @@ impl<PE> From<MacError<PE>> for Status {
 /// The split is there because it allows this function to be cancellable.
 async fn wait_for_radio_event<P: Phy>(
     phy: &mut P,
-    mac_pib: &mut MacPib,
-    mac_state: &mut MacState<'_>,
-    delay: &mut impl DelayNsExt,
+    mac_pib: &MacPib,
+    mac_state: &MacState<'_>,
+    delay: &impl DelayNsExt,
 ) -> RadioEvent<P> {
     let current_time = match phy.get_instant().await {
         Ok(current_time) => current_time,
@@ -231,12 +255,13 @@ async fn wait_for_radio_event<P: Phy>(
     }
 }
 
-async fn handle_radio_event<P: Phy>(
+async fn handle_radio_event<'a, P: Phy>(
     mut event: RadioEvent<P>,
     phy: &mut P,
     mac_pib: &mut MacPib,
-    mac_state: &mut MacState<'_>,
-    mac_handler: &MacHandler<'_>,
+    mac_state: &mut MacState<'a>,
+    mac_handler: &MacHandler<'a>,
+    mut indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
 ) {
     loop {
         match event {
@@ -263,8 +288,15 @@ async fn handle_radio_event<P: Phy>(
             }
             RadioEvent::PhyWaitDone { context } => match phy.process(context).await {
                 Ok(Some(message)) => {
-                    if let Some(next_event) =
-                        process_message::<P>(message, mac_state, mac_pib, mac_handler).await
+                    if let Some(next_event) = process_message::<P>(
+                        message,
+                        mac_state,
+                        mac_pib,
+                        mac_handler,
+                        indirect_indications.as_mut(),
+                        phy.symbol_duration(),
+                    )
+                    .await
                     {
                         event = next_event;
                         continue;
@@ -324,11 +356,14 @@ async fn send_ack(
         footer: [0, 0],
     });
 
+    // TODO: Actually schedule this according to the rules (5.1.6.4.2)
+    let ack_send_time = receive_time + phy.symbol_duration() * mac_pib.sifs_period as i64;
     trace!("Sending ack");
+
     match phy
         .send(
             &data,
-            Some(receive_time + phy.symbol_duration() * mac_pib.sifs_period as i64), // TODO: Actually schedule this according to the rules (5.1.6.4.2)
+            Some(ack_send_time),
             false,
             false,
             SendContinuation::Idle,
@@ -773,11 +808,13 @@ async fn wait_for_independent_data_request<P: Phy>(
     }
 }
 
-async fn process_message<P: Phy>(
+async fn process_message<'a, P: Phy>(
     mut message: ReceivedMessage,
-    mac_state: &mut MacState<'_>,
+    mac_state: &mut MacState<'a>,
     mac_pib: &MacPib,
-    mac_handler: &MacHandler<'_>,
+    mac_handler: &MacHandler<'a>,
+    indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
+    symbol_duration: Duration,
 ) -> Option<RadioEvent<P>> {
     let Some(frame) = mac_state.deserialize_frame(&mut message.data) else {
         trace!("Received a frame that could not be deserialized");
@@ -838,13 +875,17 @@ async fn process_message<P: Phy>(
     }
 
     match frame.content {
-        FrameContent::Command(Command::AssociationRequest(capability_info)) => {
+        FrameContent::Command(Command::AssociationRequest(capability_information)) => {
             match frame.header.source {
                 Some(Address::Extended(_, device_address)) => {
                     mlme_associate::process_received_associate_request(
                         mac_handler,
+                        mac_pib,
+                        indirect_indications,
                         device_address,
-                        capability_info,
+                        capability_information,
+                        message.timestamp,
+                        symbol_duration,
                     )
                     .await
                 }

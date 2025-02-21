@@ -82,11 +82,11 @@ impl Phy for AetherRadio {
         _use_csma: bool,
         continuation: SendContinuation,
     ) -> Result<SendResult, Self::Error> {
-        trace!("Radio send {:?}", self.node_id);
-
         let now = send_time
             .unwrap_or_else(|| std::time::Instant::from(tokio::time::Instant::now()).into());
         tokio::time::sleep_until(now.into_std().into()).await;
+
+        trace!("Radio send {:?} at: {}", self.node_id, now);
 
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
@@ -132,7 +132,11 @@ impl Phy for AetherRadio {
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio start_receive {:?}", self.node_id);
+        trace!(
+            "Radio start_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = true;
@@ -142,7 +146,11 @@ impl Phy for AetherRadio {
     }
 
     async fn stop_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio stop_receive {:?}", self.node_id);
+        trace!(
+            "Radio stop_receive {:?} at: {}",
+            self.node_id,
+            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+        );
 
         self.with_node(|node| {
             node.rx_enable = false;

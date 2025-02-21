@@ -19,6 +19,13 @@ pub struct Instant {
     ticks: u64,
 }
 
+impl Display for Instant {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
+        write!(f, "{secs}")
+    }
+}
+
 impl Instant {
     pub const fn from_ticks(ticks: u64) -> Self {
         Self { ticks }
