@@ -35,7 +35,7 @@ async fn get_pib_value<P: Phy>(
     mac_pib: &MacPib,
     pib_attribute: &str,
 ) -> Result<PibValue, MacError<P::Error>> {
-    let phy_pib = phy.get_phy_pib().await?;
+    let phy_pib = phy.get_phy_pib();
 
     if let Some(val) = phy_pib.get(pib_attribute) {
         return Ok(val);

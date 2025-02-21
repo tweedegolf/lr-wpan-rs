@@ -94,13 +94,16 @@ async fn associate() {
 
         // Now assert we got the answer we expect
         assert_eq!(associate_confirm.status, Status::Success);
-        assert_eq!(associate_confirm.assoc_short_address, Some(ShortAddress(1)));
+        assert_eq!(associate_confirm.assoc_short_address, ShortAddress(1));
     }
 
     pan_coordinator_handle.await.unwrap();
 }
 
-async fn run_pan_coordinator(pan_coordinator: &MacCommander, ready_sender: tokio::sync::oneshot::Sender<()>) {
+async fn run_pan_coordinator(
+    pan_coordinator: &MacCommander,
+    ready_sender: tokio::sync::oneshot::Sender<()>,
+) {
     // Reset the coordinator
     pan_coordinator
         .request(ResetRequest {

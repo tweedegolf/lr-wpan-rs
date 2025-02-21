@@ -96,7 +96,7 @@ pub async fn coord_realignment_sent_callback<'a>(
     responder: RequestResponder<'a, StartRequest>,
 ) {
     match send_result {
-        SendResult::Success(_) => {
+        SendResult::Success(_, _) => {
             apply_changes(phy, mac_pib, mac_state, responder).await;
         }
         SendResult::ChannelAccessFailure => {
