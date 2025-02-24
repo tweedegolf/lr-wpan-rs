@@ -6,32 +6,35 @@
 //! ```
 //! use lr_wpan_rs::phy::{Phy, SendContinuation, SendResult};
 //! use lr_wpan_rs_tests::aether::{Aether, Coordinate, Meters};
+//! use lr_wpan_rs_tests::run::create_test_runner;
 //! use lr_wpan_rs::time::Duration;
 //!
-//! # tokio::runtime::Builder::new_current_thread().enable_time().start_paused(true).build().unwrap().block_on(async {
-//! let mut aether = Aether::new();
+//! let (_, mut aether, mut runner) = create_test_runner(0);
 //!
-//! // Create two new radios connected to the aether
-//! let mut alice = aether.radio();
-//! let mut bob = aether.radio();
-//! bob.move_to(Coordinate::new(0.0, 299_792_458.0));
+//! runner.attach_test_task(async {
+//!     // Create two new radios connected to the aether
+//!     let mut alice = aether.radio();
+//!     let mut bob = aether.radio();
+//!     bob.move_to(Coordinate::new(0.0, 299_792_458.0));
 //!
-//! bob.start_receive().await.unwrap();
+//!     bob.start_receive().await.unwrap();
 //!
-//! let tx_res = alice.send(b"Hello, world!", None, false, false, SendContinuation::Idle).await.unwrap();
-//! let SendResult::Success(tx_time) = tx_res else { unreachable!() };
+//!     let tx_res = alice.send(b"Hello, world!", None, false, false, SendContinuation::Idle).await.unwrap();
+//!     let SendResult::Success(tx_time) = tx_res else { unreachable!() };
 //!
-//! let mut got_message = false;
-//! let ctx = bob.wait().await.unwrap();
+//!     let mut got_message = false;
+//!     let ctx = bob.wait().await.unwrap();
 //!
-//! if let Some(msg) = bob.process(ctx).await.unwrap() {
-//!     assert_eq!(&msg.data[..], b"Hello, world!");
-//!     assert_eq!(msg.timestamp, tx_time + Duration::from_seconds(1));
-//!     got_message = true;
-//! }
+//!     if let Some(msg) = bob.process(ctx).await.unwrap() {
+//!         assert_eq!(&msg.data[..], b"Hello, world!");
+//!         assert_eq!(msg.timestamp, tx_time + Duration::from_seconds(1));
+//!         got_message = true;
+//!     }
 //!
-//! assert!(got_message);
-//! # });
+//!     assert!(got_message);
+//! });
+//!
+//! runner.run()
 //! ```
 
 use core::fmt::Debug;
@@ -47,13 +50,10 @@ use std::{
     },
 };
 
+use async_channel::{bounded, Sender, TrySendError};
 use byte::TryRead;
 use heapless::Vec;
-use lr_wpan_rs::{
-    pib::PhyPib,
-    time::{Duration, Instant},
-    wire::Frame,
-};
+use lr_wpan_rs::{pib::PhyPib, time::Instant, wire::Frame};
 use pcap_file::{
     pcapng::{
         blocks::{
@@ -64,13 +64,14 @@ use pcap_file::{
     },
     DataLink,
 };
-use tokio::sync::mpsc::{channel, error::TrySendError, Sender};
 
 mod radio;
 mod space_time;
 
 pub use radio::AetherRadio;
 pub use space_time::{Coordinate, Meters};
+
+use crate::time::SimulationTime;
 
 /// A medium to which radios are connected
 ///
@@ -79,19 +80,26 @@ pub struct Aether {
     inner: Arc<Mutex<AetherInner>>,
 }
 
-impl Default for Aether {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Aether {
     /// Create a new empty aether
-    pub fn new() -> Self {
+    pub fn new(simulation_time: &'static SimulationTime) -> Self {
         let inner = AetherInner {
             nodes: Default::default(),
-            started: tokio::time::Instant::now(),
             pcap_trace: None,
+            simulation_time,
+        };
+
+        Self {
+            inner: Arc::new(Mutex::new(inner)),
+        }
+    }
+
+    /// Create a new empty aether
+    pub fn new_own_simulation_time() -> Self {
+        let inner = AetherInner {
+            nodes: Default::default(),
+            pcap_trace: None,
+            simulation_time: Box::leak(Box::new(SimulationTime::new())),
         };
 
         Self {
@@ -101,7 +109,7 @@ impl Aether {
 
     /// Create a radio which lives in the Aether
     pub fn radio(&mut self) -> AetherRadio {
-        let (tx, rx) = channel(16);
+        let (tx, rx) = bounded(16);
 
         let pib = PhyPib::unspecified_new();
         let local_pib = pib.clone();
@@ -180,32 +188,20 @@ impl Aether {
 
 pub struct AetherInner {
     nodes: HashMap<NodeId, Node>,
-    started: tokio::time::Instant,
     pcap_trace: Option<(PcapNgWriter<File>, HashMap<NodeId, u32>)>,
+    pub simulation_time: &'static SimulationTime,
 }
 
 impl Debug for AetherInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("AetherInner")
             .field("nodes", &self.nodes)
-            .field("started", &self.started)
             .field("pcap_dump", &self.pcap_trace.as_ref().map(|(_, h)| ((), h)))
             .finish()
     }
 }
 
 impl AetherInner {
-    fn now(&mut self) -> Instant {
-        let since_start = tokio::time::Instant::now()
-            .duration_since(self.started)
-            .as_millis()
-            .try_into()
-            .expect("tests never run longer than i64::MAX milliseconds");
-
-        // TODO: make this more accurate
-        Instant::from_ticks(0) + Duration::from_millis(since_start)
-    }
-
     pub fn start_trace(&mut self, name: &str) {
         if self.pcap_trace.is_some() {
             panic!("Already capturing pcap");
@@ -298,7 +294,7 @@ impl AetherInner {
             self.nodes.remove(&closed_radio);
         }
 
-        self.now()
+        self.simulation_time.now()
     }
 }
 
@@ -345,10 +341,12 @@ impl AirPacket {
 #[cfg(test)]
 mod tests {
     use byte::TryWrite;
+    use futures::{select, FutureExt};
     use lr_wpan_rs::{
         phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
-        wire,
+        time::Duration,
         wire::{
+            self,
             beacon::{
                 BeaconOrder::BeaconOrder, GuaranteedTimeSlotInformation, PendingAddress,
                 SuperframeOrder,
@@ -358,12 +356,11 @@ mod tests {
         },
     };
     use pcap_file::pcapng::PcapNgReader;
-    use tokio::time::timeout;
 
     use super::*;
 
     async fn receive_one(bob: &mut AetherRadio) -> ReceivedMessage {
-        let (tx, mut rx) = channel(1);
+        let (tx, rx) = bounded(1);
         let ctx = bob.wait().await.unwrap();
         if let Some(pkt) = bob.process(ctx).await.unwrap() {
             tx.try_send(pkt).unwrap();
@@ -376,9 +373,9 @@ mod tests {
         pkt
     }
 
-    #[tokio::test(start_paused = true)]
+    #[futures_test::test]
     async fn radios_are_connected() {
-        let mut a = Aether::new();
+        let mut a = Aether::new_own_simulation_time();
 
         let mut alice = a.radio();
         let mut bob = a.radio();
@@ -400,49 +397,65 @@ mod tests {
         assert_eq!(&pkt.data[..], &test_data[..]);
     }
 
-    #[tokio::test(start_paused = true)]
-    async fn ignored_if_not_listening() {
-        let mut a = Aether::new();
+    #[test]
+    fn ignored_if_not_listening() {
+        let (_, mut aether, mut runner) = crate::run::create_test_runner(0);
 
-        let mut alice = a.radio();
-        let mut bob = a.radio();
+        runner.attach_test_task(async {
+            let mut alice = aether.radio();
+            let mut bob = aether.radio();
 
-        alice
-            .send(b"Hello!", None, false, false, SendContinuation::Idle)
-            .await
-            .unwrap();
+            alice
+                .send(b"Hello!", None, false, false, SendContinuation::Idle)
+                .await
+                .unwrap();
 
-        timeout(core::time::Duration::from_secs(1), async move {
-            bob.wait().await.unwrap();
-        })
-        .await
-        .unwrap_err();
+            let simulation_time = aether.inner().simulation_time;
+
+            select! {
+                _ = simulation_time.delay(Duration::from_seconds(1)).fuse() => {
+                    // We should hit this timeout
+                }
+                _ = bob.wait().fuse() => {
+                    panic!();
+                }
+            }
+        });
+        runner.run();
     }
 
-    #[tokio::test(start_paused = true)]
-    async fn arrives_delayed() {
-        let mut a = Aether::new();
-        let mut alice = a.radio();
-        let mut bob = a.radio();
-        bob.move_to(Coordinate::new(0.0, 299_792_458.0));
+    #[test]
+    fn arrives_delayed() {
+        let (_, mut aether, mut runner) = crate::run::create_test_runner(0);
 
-        bob.start_receive().await.unwrap();
-        let before_send = tokio::time::Instant::now();
+        runner.attach_test_task(async {
+            let mut alice = aether.radio();
+            let mut bob = aether.radio();
+            bob.move_to(Coordinate::new(0.0, 299_792_458.0));
 
-        let tx_res = alice
-            .send(b"Hello!", None, false, false, SendContinuation::Idle)
-            .await
-            .unwrap();
-        let SendResult::Success(tx_time) = tx_res else {
-            panic!("Failed to send packet!")
-        };
+            bob.start_receive().await.unwrap();
+            let before_send = alice.get_instant().await.unwrap();
 
-        let pkt = receive_one(&mut bob).await;
-        assert!(before_send.elapsed() >= core::time::Duration::from_secs(1));
-        assert_eq!(pkt.timestamp, tx_time + Duration::from_millis(1_000));
+            let tx_res = alice
+                .send(b"Hello!", None, false, false, SendContinuation::Idle)
+                .await
+                .unwrap();
+            let SendResult::Success(tx_time) = tx_res else {
+                panic!("Failed to send packet!")
+            };
+
+            let pkt = receive_one(&mut bob).await;
+
+            let after_send = alice.get_instant().await.unwrap();
+
+            assert!(after_send.duration_since(before_send) >= Duration::from_seconds(1));
+            assert_eq!(pkt.timestamp, tx_time + Duration::from_millis(1_000));
+        });
+
+        runner.run();
     }
 
-    #[tokio::test]
+    #[futures_test::test]
     async fn log_beacon() {
         let beacon_frame = wire::Frame {
             header: wire::Header {
@@ -475,7 +488,7 @@ mod tests {
         };
 
         let written = {
-            let mut a = Aether::new();
+            let mut a = Aether::new_own_simulation_time();
             a.start_trace("log_beacon");
             let mut alice = a.radio();
             let mut bob = a.radio();

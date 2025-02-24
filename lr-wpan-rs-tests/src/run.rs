@@ -1,86 +1,99 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
+use async_executor::{Executor, Task};
+use log::trace;
 use lr_wpan_rs::{
     mac::{MacCommander, MacConfig},
     wire::ExtendedAddress,
 };
 use rand::{rngs::StdRng, SeedableRng};
-use tokio::task::AbortHandle;
 
 use super::aether::Aether;
-
-/// Run a single mac engine
-pub fn run_mac_engine_simple() -> Runner {
-    let commander = Box::leak(Box::new(MacCommander::new()));
-    let mut aether = Aether::new();
-
-    let task_handle = tokio::spawn(lr_wpan_rs::mac::run_mac_engine(
-        aether.radio(),
-        commander,
-        MacConfig {
-            extended_address: ExtendedAddress(0x0123456789abcdef),
-            rng: StdRng::seed_from_u64(0),
-            delay: crate::time::Delay,
-        },
-    ))
-    .abort_handle();
-
-    Runner {
-        commander,
-        aether,
-        task_handle,
-    }
-}
-
-pub struct Runner {
-    pub commander: &'static MacCommander,
-    pub aether: Aether,
-    task_handle: AbortHandle,
-}
-
-impl Drop for Runner {
-    fn drop(&mut self) {
-        self.task_handle.abort();
-    }
-}
+use crate::time::SimulationTime;
 
 /// Run multiple mac engines
-pub fn run_mac_engine_multi(count: usize) -> MultiRunner {
-    let commanders =
-        Arc::from_iter((0..count).map(|_| Box::leak(Box::new(MacCommander::new())) as &_));
-    let mut aether = Aether::new();
+pub fn create_test_runner<'a>(
+    mac_stack_count: usize,
+) -> (Arc<[&'static MacCommander]>, Aether, TestRunner<'a>) {
+    let commanders = Arc::from_iter(
+        (0..mac_stack_count).map(|_| Box::leak(Box::new(MacCommander::new())) as &_),
+    );
 
-    let task_handles = (0..count)
+    let simulation_time = Box::leak(Box::new(SimulationTime::new())) as &_;
+
+    let mut aether = Aether::new(simulation_time);
+    let executor = Executor::new();
+
+    let engine_handles = (0..mac_stack_count)
         .map(|i| {
             let commanders = commanders.clone();
-            tokio::spawn(lr_wpan_rs::mac::run_mac_engine(
-                aether.radio(),
-                commanders[i],
-                MacConfig {
-                    extended_address: ExtendedAddress(i as _),
-                    rng: StdRng::seed_from_u64(i as _),
-                    delay: crate::time::Delay,
-                },
-            ))
-            .abort_handle()
+            executor.spawn({
+                let radio = aether.radio();
+                async move {
+                    lr_wpan_rs::mac::run_mac_engine(
+                        radio,
+                        commanders[i],
+                        MacConfig {
+                            extended_address: ExtendedAddress(i as _),
+                            rng: StdRng::seed_from_u64(i as _),
+                            delay: crate::time::Delay(simulation_time),
+                        },
+                    )
+                    .await;
+                }
+            })
         })
         .collect();
 
-    MultiRunner {
+    (
         commanders,
         aether,
-        task_handles,
+        TestRunner {
+            executor,
+            task_handles: Vec::new(),
+            engine_handles,
+            simulation_time,
+        },
+    )
+}
+
+pub struct TestRunner<'a> {
+    executor: Executor<'a>,
+    engine_handles: Vec<Task<()>>,
+    task_handles: Vec<Task<()>>,
+    pub simulation_time: &'static SimulationTime,
+}
+
+impl<'a> TestRunner<'a> {
+    pub fn attach_test_task(&mut self, f: impl Future<Output = ()> + Send + 'a) {
+        self.task_handles.push(self.executor.spawn(f));
     }
-}
 
-pub struct MultiRunner {
-    pub commanders: Arc<[&'static MacCommander]>,
-    pub aether: Aether,
-    task_handles: Vec<AbortHandle>,
-}
+    pub fn run(mut self) {
+        loop {
+            if !self.executor.try_tick() {
+                trace!("Ticking time along...");
+                self.simulation_time.tick();
+            }
 
-impl Drop for MultiRunner {
-    fn drop(&mut self) {
-        self.task_handles.iter().for_each(|handle| handle.abort());
+            for i in (0..self.engine_handles.len()).rev() {
+                if self.engine_handles[i].is_finished() {
+                    // Check to see if it produced a result (and thus didn't panic)
+                    futures::executor::block_on(self.engine_handles.remove(i).cancel());
+                }
+            }
+
+            for i in (0..self.task_handles.len()).rev() {
+                if self.task_handles[i].is_finished() {
+                    // Check to see if it produced a result (and thus didn't panic)
+                    futures::executor::block_on(self.task_handles.remove(i).cancel());
+                }
+            }
+
+            if self.task_handles.is_empty() {
+                // We're done
+                break;
+            }
+        }
     }
 }
