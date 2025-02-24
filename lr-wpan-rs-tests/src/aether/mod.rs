@@ -6,10 +6,10 @@
 //! ```
 //! use lr_wpan_rs::phy::{Phy, SendContinuation, SendResult};
 //! use lr_wpan_rs_tests::aether::{Aether, Coordinate, Meters};
-//! use lr_wpan_rs_tests::run::run_mac_engine_multi;
+//! use lr_wpan_rs_tests::run::create_test_runner;
 //! use lr_wpan_rs::time::Duration;
 //!
-//! let (_, mut aether, mut runner) = run_mac_engine_multi(0);
+//! let (_, mut aether, mut runner) = create_test_runner(0);
 //!
 //! runner.attach_test_task(async {
 //!     // Create two new radios connected to the aether

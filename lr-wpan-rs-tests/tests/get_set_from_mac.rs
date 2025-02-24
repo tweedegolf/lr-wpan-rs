@@ -6,7 +6,7 @@ use lr_wpan_rs::{
 
 #[test_log::test]
 fn get_set() {
-    let (commanders, _, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
+    let (commanders, _, mut runner) = lr_wpan_rs_tests::run::create_test_runner(3);
 
     runner.attach_test_task(async {
         test_get(commanders[0]).await;

@@ -22,7 +22,7 @@ use lr_wpan_rs::{
 
 #[test_log::test]
 fn scan_passive() {
-    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
+    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::create_test_runner(3);
 
     aether.start_trace("scan_passive");
 
@@ -82,7 +82,7 @@ fn scan_passive() {
 
 #[test_log::test]
 fn scan_active() {
-    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
+    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::create_test_runner(3);
 
     aether.start_trace("scan_active");
 
@@ -190,7 +190,7 @@ fn scan_passive_no_auto_request() {
     // Goal is to scan without auto request which sends out the data as indications
     // The indications should be the same as what's being sent out on the aether
 
-    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
+    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::create_test_runner(3);
 
     aether.start_trace("scan_passive_no_auto");
 

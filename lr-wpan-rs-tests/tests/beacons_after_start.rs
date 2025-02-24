@@ -11,7 +11,7 @@ use lr_wpan_rs::{
 
 #[test_log::test]
 fn test_beacons_simple_pancoordinator() {
-    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
+    let (commanders, mut aether, mut runner) = lr_wpan_rs_tests::run::create_test_runner(3);
 
     runner.attach_test_task(async {
         aether.start_trace("beacons_after_start");
