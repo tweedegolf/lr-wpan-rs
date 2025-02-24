@@ -8,7 +8,7 @@
 //! use lr_wpan_rs_tests::aether::{Aether, Coordinate, Meters};
 //! use lr_wpan_rs::time::Duration;
 //!
-//! # tokio::runtime::Builder::new_current_thread().enable_time().start_paused(true).build().unwrap().block_on(async {
+//! # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(async {
 //! let mut aether = Aether::new();
 //!
 //! // Create two new radios connected to the aether
@@ -49,11 +49,7 @@ use std::{
 
 use byte::TryRead;
 use heapless::Vec;
-use lr_wpan_rs::{
-    pib::PhyPib,
-    time::{Duration, Instant},
-    wire::Frame,
-};
+use lr_wpan_rs::{pib::PhyPib, time::Instant, wire::Frame};
 use pcap_file::{
     pcapng::{
         blocks::{
@@ -71,6 +67,8 @@ mod space_time;
 
 pub use radio::AetherRadio;
 pub use space_time::{Coordinate, Meters};
+
+use crate::time::SIMULATION_TIME;
 
 /// A medium to which radios are connected
 ///
@@ -90,7 +88,6 @@ impl Aether {
     pub fn new() -> Self {
         let inner = AetherInner {
             nodes: Default::default(),
-            started: tokio::time::Instant::now(),
             pcap_trace: None,
         };
 
@@ -180,7 +177,6 @@ impl Aether {
 
 pub struct AetherInner {
     nodes: HashMap<NodeId, Node>,
-    started: tokio::time::Instant,
     pcap_trace: Option<(PcapNgWriter<File>, HashMap<NodeId, u32>)>,
 }
 
@@ -188,24 +184,12 @@ impl Debug for AetherInner {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("AetherInner")
             .field("nodes", &self.nodes)
-            .field("started", &self.started)
             .field("pcap_dump", &self.pcap_trace.as_ref().map(|(_, h)| ((), h)))
             .finish()
     }
 }
 
 impl AetherInner {
-    fn now(&mut self) -> Instant {
-        let since_start = tokio::time::Instant::now()
-            .duration_since(self.started)
-            .as_millis()
-            .try_into()
-            .expect("tests never run longer than i64::MAX milliseconds");
-
-        // TODO: make this more accurate
-        Instant::from_ticks(0) + Duration::from_millis(since_start)
-    }
-
     pub fn start_trace(&mut self, name: &str) {
         if self.pcap_trace.is_some() {
             panic!("Already capturing pcap");
@@ -298,7 +282,7 @@ impl AetherInner {
             self.nodes.remove(&closed_radio);
         }
 
-        self.now()
+        SIMULATION_TIME.now()
     }
 }
 
@@ -347,8 +331,9 @@ mod tests {
     use byte::TryWrite;
     use lr_wpan_rs::{
         phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
-        wire,
+        time::Duration,
         wire::{
+            self,
             beacon::{
                 BeaconOrder::BeaconOrder, GuaranteedTimeSlotInformation, PendingAddress,
                 SuperframeOrder,
@@ -376,7 +361,7 @@ mod tests {
         pkt
     }
 
-    #[tokio::test(start_paused = true)]
+    #[tokio::test]
     async fn radios_are_connected() {
         let mut a = Aether::new();
 
@@ -400,7 +385,7 @@ mod tests {
         assert_eq!(&pkt.data[..], &test_data[..]);
     }
 
-    #[tokio::test(start_paused = true)]
+    #[tokio::test]
     async fn ignored_if_not_listening() {
         let mut a = Aether::new();
 
@@ -419,7 +404,7 @@ mod tests {
         .unwrap_err();
     }
 
-    #[tokio::test(start_paused = true)]
+    #[tokio::test]
     async fn arrives_delayed() {
         let mut a = Aether::new();
         let mut alice = a.radio();

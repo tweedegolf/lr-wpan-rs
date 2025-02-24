@@ -21,7 +21,7 @@ use lr_wpan_rs::{
 };
 use test_log::test;
 
-#[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
+#[test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn scan_passive() {
     let mut runner = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
@@ -75,7 +75,7 @@ async fn scan_passive() {
     assert_eq!(scan_confirm.pan_descriptor_list().nth(1), None);
 }
 
-#[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
+#[test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn scan_active() {
     let mut runner = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
@@ -174,7 +174,7 @@ async fn scan_active() {
     );
 }
 
-#[test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
+#[test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn scan_passive_no_auto_request() {
     // Goal is to scan without auto request which sends out the data as indications
     // The indications should be the same as what's being sent out on the aether

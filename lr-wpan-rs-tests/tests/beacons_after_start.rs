@@ -10,7 +10,7 @@ use lr_wpan_rs::{
     ChannelPage,
 };
 
-#[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
+#[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime"))]
 async fn test_beacons_simple_pancoordinator() {
     let mut runner = lr_wpan_rs_tests::run::run_mac_engine_simple();
 

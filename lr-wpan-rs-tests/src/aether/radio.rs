@@ -64,7 +64,7 @@ impl Phy for AetherRadio {
     }
 
     async fn get_instant(&mut self) -> Result<Instant, Self::Error> {
-        Ok(self.aether().aether.now())
+        Ok(crate::time::SIMULATION_TIME.now())
     }
 
     fn symbol_duration(&self) -> lr_wpan_rs::time::Duration {
@@ -181,5 +181,30 @@ struct AetherGuard<'a> {
 impl AetherGuard<'_> {
     fn send(&mut self, data: AirPacket) -> Instant {
         self.aether.send(&self.node_id, data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::aether::Aether;
+
+    use super::*;
+    use lr_wpan_rs::time::{DelayNsExt, Duration};
+    use test_log::test;
+
+    #[test(tokio::test(unhandled_panic = "shutdown_runtime"))]
+    async fn radio_time_consistent() {
+        let mut aether = Aether::new();
+
+        let mut radio = aether.radio();
+        let instant = radio.get_instant().await.unwrap();
+        crate::time::Delay.delay_duration(Duration::from_millis(10)).await;
+        let instant2 = radio.get_instant().await.unwrap();
+
+        let duration = instant2.duration_since(instant);
+        println!("{duration}");
+
+        assert!(duration > Duration::from_millis(9));
+        assert!(duration < Duration::from_millis(11));
     }
 }

@@ -169,9 +169,9 @@ impl Display for Duration {
         let ms = (value - Self::from_seconds(s)).millis();
 
         if neg {
-            write!(f, "-{s}.{ms} secs")
+            write!(f, "-{s}.{ms:03} secs")
         } else {
-            write!(f, "{s}.{ms} secs")
+            write!(f, "{s}.{ms:03} secs")
         }
     }
 }
@@ -205,6 +205,16 @@ impl Duration {
 
     pub const fn from_millis(millis: i64) -> Self {
         Self::from_ticks(millis * TICKS_PER_MILLI as i64)
+    }
+
+    /// Warning: Precision issues
+    pub const fn from_micros(micros: i64) -> Self {
+        Self::from_ticks((micros * TICKS_PER_MILLI as i64) / 1000)
+    }
+
+    /// Warning: Precision issues
+    pub const fn from_nanos(nanos: i64) -> Self {
+        Self::from_ticks((nanos * TICKS_PER_MILLI as i64) / 1_000_000)
     }
 
     pub const fn ticks(&self) -> i64 {
