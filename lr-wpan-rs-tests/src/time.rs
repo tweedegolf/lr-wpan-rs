@@ -86,3 +86,9 @@ impl SimulationTime {
         debug!("Time updated. Now = {}", self.now().duration_since_epoch());
     }
 }
+
+impl Default for SimulationTime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
