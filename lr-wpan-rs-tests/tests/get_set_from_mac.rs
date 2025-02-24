@@ -4,12 +4,16 @@ use lr_wpan_rs::{
     sap::{get::GetRequest, set::SetRequest, Status},
 };
 
-#[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime"))]
-async fn get_set() {
-    let runner = lr_wpan_rs_tests::run::run_mac_engine_simple();
+#[test_log::test]
+fn get_set() {
+    let (commanders, _, mut runner) = lr_wpan_rs_tests::run::run_mac_engine_multi(3);
 
-    test_get(runner.commander).await;
-    test_set(runner.commander).await;
+    runner.attach_test_task(async {
+        test_get(commanders[0]).await;
+        test_set(commanders[0]).await;
+    });
+
+    runner.run();
 }
 
 async fn test_get(commander: &MacCommander) {

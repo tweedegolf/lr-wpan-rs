@@ -100,14 +100,6 @@ impl Sub<Duration> for Instant {
     }
 }
 
-impl Sub<Instant> for Instant {
-    type Output = Duration;
-
-    fn sub(self, rhs: Instant) -> Self::Output {
-        rhs.duration_since(self)
-    }
-}
-
 impl SubAssign<Duration> for Instant {
     fn sub_assign(&mut self, rhs: Duration) {
         *self = *self - rhs;

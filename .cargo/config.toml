@@ -1,2 +1,5 @@
 [build]
 rustflags = ["--cfg", "tokio_unstable"]
+
+[env]
+RUST_LOG = "trace,lr_wpan_rs_tests=debug"

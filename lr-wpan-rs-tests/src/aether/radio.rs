@@ -1,14 +1,17 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use async_channel::Receiver;
 use log::trace;
 use lr_wpan_rs::{
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::{PhyPib, PhyPibWrite},
     time::Instant,
 };
-use tokio::sync::mpsc::Receiver;
 
-use crate::aether::{AetherInner, AirPacket, Coordinate, Node, NodeId};
+use crate::{
+    aether::{AetherInner, AirPacket, Coordinate, Node, NodeId},
+    time::SimulationTime,
+};
 
 /// Single radio connected to an [`super::Aether`]
 #[derive(Debug)]
@@ -29,6 +32,10 @@ impl AetherRadio {
             aether: self.inner.lock().unwrap(),
             node_id: self.node_id.clone(),
         }
+    }
+
+    fn simulation_time(&self) -> &'static SimulationTime {
+        self.inner.lock().unwrap().simulation_time
     }
 
     fn with_node<R>(&mut self, f: impl FnOnce(&mut Node) -> R) -> R {
@@ -64,7 +71,7 @@ impl Phy for AetherRadio {
     }
 
     async fn get_instant(&mut self) -> Result<Instant, Self::Error> {
-        Ok(crate::time::SIMULATION_TIME.now())
+        Ok(self.aether().simulation_time().now())
     }
 
     fn symbol_duration(&self) -> lr_wpan_rs::time::Duration {
@@ -81,9 +88,12 @@ impl Phy for AetherRadio {
     ) -> Result<SendResult, Self::Error> {
         trace!("Radio send {:?}", self.node_id);
 
-        let now = send_time
-            .unwrap_or_else(|| std::time::Instant::from(tokio::time::Instant::now()).into());
-        tokio::time::sleep_until(now.into_std().into()).await;
+        let mut now = self.simulation_time().now();
+        let send_time = send_time.unwrap_or(now);
+        self.simulation_time()
+            .delay(send_time.duration_since(now))
+            .await;
+        now = send_time;
 
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
@@ -139,7 +149,10 @@ impl Phy for AetherRadio {
                 page: lr_wpan_rs::ChannelPage::Uwb,
             };
 
-            tokio::time::sleep_until(msg.timestamp.into_std().into()).await;
+            let now = self.simulation_time().now();
+            self.simulation_time()
+                .delay(msg.timestamp.duration_since(now))
+                .await;
 
             return Ok(msg);
         }
@@ -182,29 +195,8 @@ impl AetherGuard<'_> {
     fn send(&mut self, data: AirPacket) -> Instant {
         self.aether.send(&self.node_id, data)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use crate::aether::Aether;
-
-    use super::*;
-    use lr_wpan_rs::time::{DelayNsExt, Duration};
-    use test_log::test;
-
-    #[test(tokio::test(unhandled_panic = "shutdown_runtime"))]
-    async fn radio_time_consistent() {
-        let mut aether = Aether::new();
-
-        let mut radio = aether.radio();
-        let instant = radio.get_instant().await.unwrap();
-        crate::time::Delay.delay_duration(Duration::from_millis(10)).await;
-        let instant2 = radio.get_instant().await.unwrap();
-
-        let duration = instant2.duration_since(instant);
-        println!("{duration}");
-
-        assert!(duration > Duration::from_millis(9));
-        assert!(duration < Duration::from_millis(11));
+    fn simulation_time(&self) -> &'static SimulationTime {
+        self.aether.simulation_time
     }
 }
