@@ -341,8 +341,10 @@ impl AirPacket {
 #[cfg(test)]
 mod tests {
     use byte::TryWrite;
+    use futures::{select, FutureExt};
     use lr_wpan_rs::{
         phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
+        time::Duration,
         wire::{
             self,
             beacon::{
@@ -395,47 +397,63 @@ mod tests {
         assert_eq!(&pkt.data[..], &test_data[..]);
     }
 
-    // #[futures_test::test]
-    // async fn ignored_if_not_listening() {
-    //     let mut a = Aether::new();
+    #[test]
+    fn ignored_if_not_listening() {
+        let (_, mut aether, mut runner) = crate::run::create_test_runner(0);
 
-    //     let mut alice = a.radio();
-    //     let mut bob = a.radio();
+        runner.attach_test_task(async {
+            let mut alice = aether.radio();
+            let mut bob = aether.radio();
 
-    //     alice
-    //         .send(b"Hello!", None, false, false, SendContinuation::Idle)
-    //         .await
-    //         .unwrap();
+            alice
+                .send(b"Hello!", None, false, false, SendContinuation::Idle)
+                .await
+                .unwrap();
 
-    //     timeout(core::time::Duration::from_secs(1), async move {
-    //         bob.wait().await.unwrap();
-    //     })
-    //     .await
-    //     .unwrap_err();
-    // }
+            let simulation_time = aether.inner().simulation_time;
 
-    // #[futures_test::test]
-    // async fn arrives_delayed() {
-    //     let mut a = Aether::new();
-    //     let mut alice = a.radio();
-    //     let mut bob = a.radio();
-    //     bob.move_to(Coordinate::new(0.0, 299_792_458.0));
+            select! {
+                _ = simulation_time.delay(Duration::from_seconds(1)).fuse() => {
+                    // We should hit this timeout
+                }
+                _ = bob.wait().fuse() => {
+                    panic!();
+                }
+            }
+        });
+        runner.run();
+    }
 
-    //     bob.start_receive().await.unwrap();
-    //     let before_send = tokio::time::Instant::now();
+    #[test]
+    fn arrives_delayed() {
+        let (_, mut aether, mut runner) = crate::run::create_test_runner(0);
 
-    //     let tx_res = alice
-    //         .send(b"Hello!", None, false, false, SendContinuation::Idle)
-    //         .await
-    //         .unwrap();
-    //     let SendResult::Success(tx_time) = tx_res else {
-    //         panic!("Failed to send packet!")
-    //     };
+        runner.attach_test_task(async {
+            let mut alice = aether.radio();
+            let mut bob = aether.radio();
+            bob.move_to(Coordinate::new(0.0, 299_792_458.0));
 
-    //     let pkt = receive_one(&mut bob).await;
-    //     assert!(before_send.elapsed() >= core::time::Duration::from_secs(1));
-    //     assert_eq!(pkt.timestamp, tx_time + Duration::from_millis(1_000));
-    // }
+            bob.start_receive().await.unwrap();
+            let before_send = alice.get_instant().await.unwrap();
+
+            let tx_res = alice
+                .send(b"Hello!", None, false, false, SendContinuation::Idle)
+                .await
+                .unwrap();
+            let SendResult::Success(tx_time) = tx_res else {
+                panic!("Failed to send packet!")
+            };
+
+            let pkt = receive_one(&mut bob).await;
+
+            let after_send = alice.get_instant().await.unwrap();
+
+            assert!(after_send.duration_since(before_send) >= Duration::from_seconds(1));
+            assert_eq!(pkt.timestamp, tx_time + Duration::from_millis(1_000));
+        });
+
+        runner.run();
+    }
 
     #[futures_test::test]
     async fn log_beacon() {
