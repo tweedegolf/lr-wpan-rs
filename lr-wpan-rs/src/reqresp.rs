@@ -51,7 +51,7 @@ pub struct RequestFuture<'a, Request, Response, const N: usize> {
         Join<Wait<'a, u32, Response>, SendFuture<'a, CriticalSectionRawMutex, (u32, Request), N>>,
 }
 
-impl<'a, Request, Response, const N: usize> Future for RequestFuture<'a, Request, Response, N> {
+impl<Request, Response, const N: usize> Future for RequestFuture<'_, Request, Response, N> {
     type Output = Response;
 
     fn poll(

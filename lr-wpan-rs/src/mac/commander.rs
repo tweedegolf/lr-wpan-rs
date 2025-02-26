@@ -231,13 +231,11 @@ impl<'a> IndirectIndicationCollectionSlot<'a> {
     }
 
     fn check_expired(mut self: Pin<&mut Self>, current_time: Instant) {
-        if !self.as_mut().is_empty() {
-            if current_time > self.expire_time {
-                self.set(Self {
-                    future: None,
-                    expire_time: Instant::from_ticks(0),
-                });
-            }
+        if !self.as_mut().is_empty() && current_time > self.expire_time {
+            self.set(Self {
+                future: None,
+                expire_time: Instant::from_ticks(0),
+            });
         }
     }
 
