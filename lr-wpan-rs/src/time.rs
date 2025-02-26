@@ -22,7 +22,7 @@ pub struct Instant {
 impl Display for Instant {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
-        write!(f, "{secs}")
+        write!(f, "{secs:.9}")
     }
 }
 
@@ -78,11 +78,6 @@ impl Instant {
             None => None,
         }
     }
-
-    #[cfg(feature = "std")]
-    pub fn into_std(self) -> std::time::Instant {
-        self.into()
-    }
 }
 
 impl Add<Duration> for Instant {
@@ -122,31 +117,6 @@ impl Div<Duration> for Instant {
     }
 }
 
-#[cfg(feature = "std")]
-static START_TIME: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-
-#[cfg(feature = "std")]
-impl From<std::time::Instant> for Instant {
-    fn from(value: std::time::Instant) -> Self {
-        let start = START_TIME.get_or_init(std::time::Instant::now);
-        let since_start = value.duration_since(*start);
-
-        let ticks = since_start.as_secs_f64() * TICKS_PER_SECOND as f64;
-
-        Instant::from_ticks(ticks as u64)
-    }
-}
-
-#[cfg(feature = "std")]
-impl From<Instant> for std::time::Instant {
-    fn from(value: Instant) -> Self {
-        let start = *START_TIME.get_or_init(std::time::Instant::now);
-        let seconds = value.ticks() as f64 / TICKS_PER_SECOND as f64;
-
-        start + std::time::Duration::from_secs_f64(seconds)
-    }
-}
-
 /// A span of time.
 ///
 /// Every tick is 1/128th of a chip time at the mandatory
@@ -160,36 +130,16 @@ pub struct Duration {
 
 impl Display for Duration {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let neg = self.ticks < 0;
-
-        let value = self.abs();
-
-        let s = value.secs();
-        let ms = (value - Self::from_seconds(s)).millis();
-
-        if neg {
-            write!(f, "-{s}.{ms:03} secs")
-        } else {
-            write!(f, "{s}.{ms:03} secs")
-        }
+        let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
+        write!(f, "{secs:.9}")
     }
 }
 
 #[cfg(feature = "defmt-03")]
 impl defmt::Format for Duration {
     fn format(&self, f: defmt::Formatter) {
-        let neg = self.ticks < 0;
-
-        let value = self.abs();
-
-        let s = value.secs();
-        let ms = (value - Self::from_seconds(s)).millis();
-
-        if neg {
-            defmt::write!(f, "-{}.{} secs", s, ms)
-        } else {
-            defmt::write!(f, "{}.{} secs", s, ms)
-        }
+        let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
+        defmt::write!(f, "{:.9}", secs)
     }
 }
 

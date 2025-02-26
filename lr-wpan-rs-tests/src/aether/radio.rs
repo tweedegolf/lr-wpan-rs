@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_channel::Receiver;
+use futures::FutureExt;
 use log::trace;
 use lr_wpan_rs::{
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
@@ -110,17 +111,17 @@ impl Phy for AetherRadio {
                 turnaround_time,
                 timeout,
             } => {
-                tokio::time::sleep(turnaround_time.into_std()).await;
+                self.simulation_time().delay(turnaround_time).await;
                 self.start_receive().await?;
 
-                let mut timeout = pin!(tokio::time::sleep(timeout.into_std()));
+                let mut timeout = pin!(self.simulation_time().delay(timeout).fuse());
 
                 let response = loop {
-                    tokio::select! {
+                    futures::select! {
                         _ = &mut timeout => {
                             break None;
                         }
-                        processing_context = self.wait() => {
+                        processing_context = self.wait().fuse() => {
                             match self.process(processing_context?).await? {
                                 Some(received_message) => break Some(received_message),
                                 None => continue,
@@ -147,7 +148,7 @@ impl Phy for AetherRadio {
         trace!(
             "Radio start_receive {:?} at: {}",
             self.node_id,
-            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+            self.simulation_time().now(),
         );
 
         self.with_node(|node| {
@@ -161,7 +162,7 @@ impl Phy for AetherRadio {
         trace!(
             "Radio stop_receive {:?} at: {}",
             self.node_id,
-            Instant::from(std::time::Instant::from(tokio::time::Instant::now()))
+            self.simulation_time().now(),
         );
 
         self.with_node(|node| {

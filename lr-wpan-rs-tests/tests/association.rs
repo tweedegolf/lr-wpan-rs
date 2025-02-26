@@ -20,18 +20,18 @@ use lr_wpan_rs::{
     ChannelPage,
 };
 
-#[test_log::test(tokio::test(unhandled_panic = "shutdown_runtime", start_paused = true))]
-async fn associate() {
-    let runner = lr_wpan_rs_tests::run::run_mac_engine_multi(2);
+#[test_log::test]
+fn associate() {
+    let (commanders, _, mut runner) = lr_wpan_rs_tests::run::create_test_runner(2);
 
-    let pan_coordinator = runner.commanders[0];
-    let device = runner.commanders[1];
+    let pan_coordinator = commanders[0];
+    let device = commanders[1];
 
-    let (ready_sender, ready_receiver) = tokio::sync::oneshot::channel();
-    let pan_coordinator_handle = tokio::spawn(run_pan_coordinator(pan_coordinator, ready_sender));
+    let (ready_sender, ready_receiver) = async_channel::bounded(1);
+    runner.attach_test_task(run_pan_coordinator(pan_coordinator, ready_sender));
 
     // Run the device
-    {
+    runner.attach_test_task(async move {
         // Reset the device
         device
             .request(ResetRequest {
@@ -52,7 +52,7 @@ async fn associate() {
             .unwrap();
 
         // Wait until coordinator is ready
-        let _ = ready_receiver.await;
+        let _ = ready_receiver.recv().await;
 
         // Scan for the PAN the coordinator is running
         let mut scan_allocation = [None; 1];
@@ -95,14 +95,14 @@ async fn associate() {
         // Now assert we got the answer we expect
         assert_eq!(associate_confirm.status, Status::Success);
         assert_eq!(associate_confirm.assoc_short_address, ShortAddress(1));
-    }
+    });
 
-    pan_coordinator_handle.await.unwrap();
+    runner.run();
 }
 
 async fn run_pan_coordinator(
     pan_coordinator: &MacCommander,
-    ready_sender: tokio::sync::oneshot::Sender<()>,
+    ready_sender: async_channel::Sender<()>,
 ) {
     // Reset the coordinator
     pan_coordinator
@@ -143,7 +143,7 @@ async fn run_pan_coordinator(
         .unwrap();
 
     // We've done our setup
-    ready_sender.send(()).unwrap();
+    ready_sender.send(()).await.unwrap();
 
     // Wait for the association indication and respond/accept it
     let indication_responder = pan_coordinator.wait_for_indication().await;
