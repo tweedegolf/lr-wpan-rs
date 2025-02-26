@@ -201,6 +201,7 @@ pub struct ScheduledMessage<'a> {
 
 pub struct ScheduledDataRequest<'a> {
     pub mode: DataRequestMode,
+    pub trigger: DataRequestTrigger,
     pub used_security_info: SecurityInfo,
     pub callback: DataRequestCallback<'a>,
 }
@@ -224,6 +225,13 @@ impl DataRequestMode {
     pub fn is_independent(&self) -> bool {
         matches!(self, Self::Independent { .. })
     }
+}
+
+/// What triggered the sending of this data request?
+pub enum DataRequestTrigger {
+    BeaconPendingDataIndication,
+    MlmePoll,
+    Association,
 }
 
 #[derive(Debug, Clone, Copy)]

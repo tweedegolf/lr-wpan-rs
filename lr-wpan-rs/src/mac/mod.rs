@@ -8,7 +8,7 @@ use crate::{
     pib::MacPib,
     sap::{scan::ScanType, RequestValue, Status},
     time::{DelayNsExt, Duration, Instant},
-    wire::{command::Command, Address},
+    wire::{command::Command, Address, FrameType},
 };
 
 mod callback;
@@ -81,8 +81,11 @@ pub async fn run_mac_engine<'a, Rng: RngCore, Delay: DelayNsExt>(
                 )
                 .await
             }
-            Either3::Second(_indication_response_value) => {
-                todo!();
+            Either3::Second(indication_response_value) => {
+                todo!(
+                    "Process indication response: {:?}",
+                    indication_response_value
+                );
             }
             Either3::Third(responder) => {
                 handle_request(
@@ -316,6 +319,9 @@ async fn handle_radio_event<'a, P: Phy>(
                         .message_scheduler
                         .take_scheduled_independent_data_request()
                         .unwrap(),
+                    phy,
+                    mac_state,
+                    mac_pib,
                 )
                 .await
             }
@@ -382,8 +388,109 @@ async fn send_ack(
     }
 }
 
-async fn perform_data_request(_data_request: ScheduledDataRequest<'_>) {
-    todo!()
+// 5.1.6.3
+async fn perform_data_request(
+    data_request: ScheduledDataRequest<'_>,
+    phy: &mut impl Phy,
+    mac_state: &mut MacState<'_>,
+    mac_pib: &mut MacPib,
+) {
+    let send_time = match data_request.mode {
+        DataRequestMode::InSuperFrame => todo!(),
+        DataRequestMode::Independent { timestamp } => timestamp,
+    };
+
+    let (destination_address, source_address) = match data_request.trigger {
+        state::DataRequestTrigger::BeaconPendingDataIndication => todo!(),
+        state::DataRequestTrigger::MlmePoll => todo!(),
+        state::DataRequestTrigger::Association => {
+            let destination = if mac_pib.coord_short_address.0 == 0xFFFE {
+                Address::Extended(mac_pib.pan_id, mac_pib.coord_extended_address)
+            } else {
+                Address::Short(mac_pib.pan_id, mac_pib.coord_short_address)
+            };
+
+            let source = Address::Extended(mac_pib.pan_id, mac_pib.extended_address);
+
+            (Some(destination), source)
+        }
+    };
+
+    let dsn = mac_pib.dsn.increment();
+    let data_request_frame = Frame {
+        header: crate::wire::Header {
+            frame_type: crate::wire::FrameType::MacCommand,
+            frame_pending: false,
+            ack_request: true,
+            pan_id_compress: destination_address.is_none(),
+            seq_no_suppress: false,
+            ie_present: false,
+            version: crate::wire::FrameVersion::Ieee802154_2003,
+            seq: dsn,
+            destination: destination_address,
+            source: Some(source_address),
+            auxiliary_security_header: None,
+        },
+        content: FrameContent::Command(Command::DataRequest),
+        payload: &[],
+        footer: [0; 2],
+    };
+
+    let message = mac_state.serialize_frame(data_request_frame);
+
+    let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
+    let send_result = phy
+        .send(
+            &message,
+            send_time,
+            false,
+            true, // TODO: Unless in superframe
+            SendContinuation::WaitForResponse {
+                turnaround_time: phy.symbol_duration() * crate::consts::TURNAROUND_TIME as i64,
+                timeout: phy.symbol_duration() * ack_wait_duration,
+            },
+        )
+        .await;
+
+    let ack = match send_result {
+        Ok(SendResult::Success(_, None)) => None,
+        Ok(SendResult::Success(_, Some(mut response))) => {
+            // See if what we received was an Ack for us
+            match mac_state.deserialize_frame(&mut response.data) {
+                Some(frame) => {
+                    if matches!(frame.header.frame_type, FrameType::Acknowledgement)
+                        && frame.header.seq == dsn
+                    {
+                        Some((response.timestamp, frame.header.frame_pending))
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        }
+        Ok(SendResult::ChannelAccessFailure) => {
+            warn!("Could not send the data request: ChannelAccessFailure");
+            None
+        }
+        Err(e) => {
+            error!("Could not send the data request: {}", e);
+            None
+        }
+    };
+
+    let Some((_ack_timestamp, frame_pending)) = ack else {
+        error!("No ack received for data request. Retransmission: TODO");
+        return;
+    };
+
+    if !frame_pending {
+        trace!("No data available at the coordinator");
+        data_request.callback.run().await;
+        return;
+    }
+
+    todo!("Turn on receiver for macMaxFrameTotalWaitTime to receive the data")
 }
 
 async fn perform_scan_action(
@@ -803,7 +910,11 @@ async fn wait_for_independent_data_request<P: Phy>(
                 .await;
             RadioEvent::SendScheduledIndependentDataRequest
         }
-        Some(_) => RadioEvent::SendScheduledIndependentDataRequest,
+        Some(ScheduledDataRequest {
+            mode: DataRequestMode::Independent { timestamp: None },
+            ..
+        }) => RadioEvent::SendScheduledIndependentDataRequest,
+        Some(_) => todo!(),
         None => core::future::pending().await,
     }
 }

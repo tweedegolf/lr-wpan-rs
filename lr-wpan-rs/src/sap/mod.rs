@@ -526,6 +526,7 @@ impl From<AssociateIndication> for IndicationValue {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum ResponseValue {
     Associate(AssociateResponse),
     Orphan(OrphanResponse),

@@ -6,6 +6,7 @@ use super::{
     state::{DataRequestMode, MacState, ScheduledDataRequest},
 };
 use crate::{
+    mac::state::DataRequestTrigger,
     phy::{Phy, SendContinuation, SendResult},
     pib::MacPib,
     sap::{
@@ -91,10 +92,9 @@ pub async fn process_associate_request<'a>(
     };
     let associate_request_frame_data = mac_state.serialize_frame(associate_request_frame);
 
-    let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
-
     debug!("Sending association request");
 
+    let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
     // We send with ack request, but we won't retry if the ack is not received
     let send_result = phy
         .send(
@@ -172,6 +172,7 @@ pub async fn process_associate_request<'a>(
                             * mac_pib.response_wait_time as i64,
                 ),
             },
+            trigger: DataRequestTrigger::Association,
             used_security_info: responder.request.security_info,
             callback: DataRequestCallback::AssociationProcedure(responder),
         });

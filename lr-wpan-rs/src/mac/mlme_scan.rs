@@ -108,7 +108,7 @@ impl ScanProcess<'_> {
     ) -> ScanAction {
         trace!(
             "Waiting for scan: {}",
-            self.end_time.duration_since(current_time)
+            self.end_time.duration_since(current_time),
         );
 
         delay
@@ -196,6 +196,8 @@ impl ScanProcess<'_> {
                 self.skipped_channels = self.results.unscanned_channels.len();
                 self.end_time = Instant::from_ticks(0);
                 self.results.status = Status::LimitReached;
+
+                trace!("Scan is done because no more space in pan_descriptor_list");
             }
         } else {
             // Output a beacon notification as per the spec
