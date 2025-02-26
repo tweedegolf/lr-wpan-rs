@@ -205,7 +205,7 @@ struct IndirectIndicationCollectionSlot<'a> {
 }
 
 impl<'a> IndirectIndicationCollectionSlot<'a> {
-    fn project_future(self: Pin<&mut Self>) -> Option<Pin<&mut IndicateIndirectFuture<'a>>> {
+    fn project_future_as_mut(self: Pin<&mut Self>) -> Option<Pin<&mut IndicateIndirectFuture<'a>>> {
         // Safety: The inner future remains just as pinned as before
         unsafe {
             self.get_unchecked_mut()
@@ -213,6 +213,11 @@ impl<'a> IndirectIndicationCollectionSlot<'a> {
                 .as_mut()
                 .map(|f| Pin::new_unchecked(f))
         }
+    }
+
+    fn project_future(self: Pin<&mut Self>) -> Pin<&mut Option<IndicateIndirectFuture<'a>>> {
+        // Safety: The inner future remains just as pinned as before
+        unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().future) }
     }
 
     fn is_empty(self: Pin<&mut Self>) -> bool {
@@ -239,9 +244,17 @@ impl<'a> IndirectIndicationCollectionSlot<'a> {
         }
     }
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<ResponseValue> {
-        match self.project_future() {
-            Some(future) => future.poll(cx),
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<ResponseValue> {
+        match self.as_mut().project_future_as_mut() {
+            Some(future) => {
+                let result = future.poll(cx);
+
+                if result.is_ready() {
+                    self.project_future().set(None);
+                }
+
+                result
+            }
             None => Poll::Pending,
         }
     }
