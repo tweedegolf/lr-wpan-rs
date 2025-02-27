@@ -157,7 +157,7 @@ async fn run_pan_coordinator(
 
             responder.respond(AssociateResponse {
                 device_address: request_device_address,
-                assoc_short_address: Some(ShortAddress(1)),
+                assoc_short_address: ShortAddress(1),
                 status: lr_wpan_rs::wire::command::AssociationStatus::Successful,
                 security_info: SecurityInfo::new_none_security(),
             });

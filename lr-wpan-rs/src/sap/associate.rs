@@ -90,9 +90,9 @@ pub struct AssociateResponse {
     pub device_address: ExtendedAddress,
     /// The short device address allocated by the
     /// coordinator on successful association. This
-    /// parameter is set to 0xffff or None if the association
+    /// parameter is set to 0xffff if the association
     /// was unsuccessful.
-    pub assoc_short_address: Option<ShortAddress>,
+    pub assoc_short_address: ShortAddress,
     /// The status of the association attempt.
     pub status: AssociationStatus,
     pub security_info: SecurityInfo,

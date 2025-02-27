@@ -3,14 +3,14 @@ use core::pin::Pin;
 use super::{
     callback::DataRequestCallback,
     commander::{IndirectIndicationCollection, MacHandler, RequestResponder},
-    state::{DataRequestMode, MacState, ScheduledDataRequest},
+    state::{DataRequestMode, MacState, PendingData, ScheduledDataRequest},
 };
 use crate::{
     mac::state::DataRequestTrigger,
     phy::{Phy, SendContinuation, SendResult},
     pib::MacPib,
     sap::{
-        associate::{AssociateConfirm, AssociateIndication, AssociateRequest},
+        associate::{AssociateConfirm, AssociateIndication, AssociateRequest, AssociateResponse},
         SecurityInfo, Status,
     },
     time::{Duration, Instant},
@@ -201,4 +201,27 @@ pub async fn process_received_associate_request<'a>(
                 * crate::consts::BASE_SUPERFRAME_DURATION as i64
                 * mac_pib.response_wait_time as i64,
     );
+}
+
+/// Process the response to an indication
+pub async fn process_associate_response(
+    response: AssociateResponse,
+    current_time: Instant,
+    mac_state: &mut MacState<'_>,
+) {
+    let push_result = mac_state.message_scheduler.push_pending_data(PendingData {
+        device: crate::DeviceAddress::Extended(response.device_address),
+        data_value: super::state::PendingDataValue::AssociationResponse {
+            short_address: response.assoc_short_address,
+            association_status: response.status,
+        },
+        registration_time: current_time,
+    });
+
+    if let Err(status) = push_result {
+        error!(
+            "Could not push associate response to pending data: {}",
+            status
+        );
+    }
 }

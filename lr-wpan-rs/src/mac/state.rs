@@ -8,13 +8,15 @@ use super::{
     MacConfig,
 };
 use crate::{
-    sap::SecurityInfo,
+    sap::{SecurityInfo, Status},
     time::{DelayNsExt, Instant},
     wire::{
         beacon::{GuaranteedTimeSlotInformation, PendingAddress},
+        command::AssociationStatus,
         security::{default::Unimplemented, SecurityContext},
-        FooterMode, FrameSerDesContext,
+        FooterMode, FrameSerDesContext, ShortAddress,
     },
+    DeviceAddress,
 };
 
 pub struct MacState<'a> {
@@ -43,6 +45,7 @@ impl MacState<'_> {
             message_scheduler: MessageScheduler {
                 scheduled_broadcasts: ArrayDeque::new(),
                 data_requests: Vec::new(),
+                pending_data: Vec::new(),
             },
             beacon_security_info: Default::default(),
             coordinator_beacon_tracked: false,
@@ -111,6 +114,8 @@ pub struct MessageScheduler<'a> {
     /// The messages are sent using CSMA-CA.
     scheduled_broadcasts: ArrayDeque<ScheduledMessage<'a>, 4>,
     data_requests: Vec<ScheduledDataRequest<'a>, 1>,
+    /// Data that's pending being requested by a data request
+    pending_data: Vec<PendingData, 16>,
 }
 
 impl<'a> MessageScheduler<'a> {
@@ -152,7 +157,24 @@ impl<'a> MessageScheduler<'a> {
     }
 
     pub fn get_pending_addresses(&self) -> PendingAddress {
+        // TODO: Use pending data
         PendingAddress::new()
+    }
+
+    pub fn push_pending_data(&mut self, data: PendingData) -> Result<(), Status> {
+        // TODO: Clean up data based on time
+        match self.pending_data.push(data) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(Status::TransactionOverflow),
+        }
+    }
+
+    pub fn take_pending_data(&mut self, device_address: DeviceAddress) -> Option<PendingData> {
+        let position = self
+            .pending_data
+            .iter()
+            .position(|pd| pd.device == device_address)?;
+        Some(self.pending_data.remove(position))
     }
 
     pub fn schedule_data_request(&mut self, data_request: ScheduledDataRequest<'a>) {
@@ -197,6 +219,19 @@ impl<'a> MessageScheduler<'a> {
 pub struct ScheduledMessage<'a> {
     pub data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
     pub callback: SendCallback<'a>,
+}
+
+pub struct PendingData {
+    pub device: DeviceAddress,
+    pub data_value: PendingDataValue,
+    pub registration_time: Instant,
+}
+
+pub enum PendingDataValue {
+    AssociationResponse {
+        short_address: ShortAddress,
+        association_status: AssociationStatus,
+    },
 }
 
 pub struct ScheduledDataRequest<'a> {

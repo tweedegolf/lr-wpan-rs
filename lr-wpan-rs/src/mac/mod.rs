@@ -6,7 +6,7 @@ use core::{
 use crate::{
     phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::MacPib,
-    sap::{scan::ScanType, RequestValue, Status},
+    sap::{scan::ScanType, RequestValue, ResponseValue, Status},
     time::{DelayNsExt, Duration, Instant},
     wire::{command::Command, Address, FrameType},
 };
@@ -25,7 +25,7 @@ pub use commander::{IndicationResponder, MacCommander};
 use commander::{IndirectIndicationCollection, MacHandler};
 use embassy_futures::select::{select3, Either3};
 use futures::FutureExt;
-use mlme_associate::process_associate_request;
+use mlme_associate::{process_associate_request, process_associate_response};
 use mlme_get::process_get_request;
 use mlme_reset::process_reset_request;
 use mlme_scan::{process_scan_request, ScanAction};
@@ -82,10 +82,7 @@ pub async fn run_mac_engine<'a, Rng: RngCore, Delay: DelayNsExt>(
                 .await
             }
             Either3::Second(indication_response_value) => {
-                todo!(
-                    "Process indication response: {:?}",
-                    indication_response_value
-                );
+                handle_response(indication_response_value, &mut phy, &mut mac_state).await
             }
             Either3::Third(responder) => {
                 handle_request(
@@ -137,6 +134,28 @@ async fn handle_request<'a, Rng: RngCore, Delay: DelayNsExt>(
         RequestValue::Calibrate(_) => todo!(),
         RequestValue::Data(_) => todo!(),
         RequestValue::Purge(_) => todo!(),
+    }
+}
+
+async fn handle_response(
+    indication_response_value: ResponseValue,
+    phy: &mut impl Phy,
+    mac_state: &mut MacState<'_>,
+) {
+    let current_time = match phy.get_instant().await {
+        Ok(current_time) => current_time,
+        Err(e) => {
+            error!("Could not get the current time, so we can't process the indication_response_value: {}", e);
+            return;
+        }
+    };
+
+    match indication_response_value {
+        crate::sap::ResponseValue::Associate(associate_response) => {
+            process_associate_response(associate_response, current_time, mac_state).await
+        }
+        crate::sap::ResponseValue::Orphan(_orphan_response) => todo!(),
+        crate::sap::ResponseValue::None => todo!(),
     }
 }
 
