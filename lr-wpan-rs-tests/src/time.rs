@@ -75,11 +75,13 @@ impl SimulationTime {
         let next_time = self.next_smallest_end_time.swap(u64::MAX, Ordering::SeqCst);
 
         if next_time == u64::MAX {
-            // Nothing has set the delay, so we're probably not ready to move the time yet
-            return;
+            // Nothing has set the delay
+            panic!("Trying to tick time along, but nothing is awaiting time or anything else");
         }
 
-        self.now_ticks.store(next_time, Ordering::SeqCst);
+        let _prev_now = self.now_ticks.swap(next_time, Ordering::SeqCst);
+        #[cfg(feature = "realtime")]
+        std::thread::sleep(Duration::from_ticks((next_time - _prev_now) as i64).into_std());
 
         self.delay_waits.wake_all();
 

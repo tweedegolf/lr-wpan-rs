@@ -20,7 +20,7 @@
 //!     bob.start_receive().await.unwrap();
 //!
 //!     let tx_res = alice.send(b"Hello, world!", None, false, false, SendContinuation::Idle).await.unwrap();
-//!     let SendResult::Success(tx_time) = tx_res else { unreachable!() };
+//!     let SendResult::Success(tx_time, _) = tx_res else { unreachable!() };
 //!
 //!     let mut got_message = false;
 //!     let ctx = bob.wait().await.unwrap();
