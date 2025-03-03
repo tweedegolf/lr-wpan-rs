@@ -24,7 +24,7 @@ pub trait Phy {
     async fn get_instant(&mut self) -> Result<Instant, Self::Error>;
 
     /// Get the amount of time each symbol takes.
-    fn symbol_duration(&self) -> Duration;
+    fn symbol_period(&self) -> Duration;
 
     /// Send some data.
     ///

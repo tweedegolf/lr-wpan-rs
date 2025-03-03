@@ -60,7 +60,7 @@ pub async fn process_scan_request<'a>(
     // Create the process. Making this `Some` will mark the scan as 'in process' for the rest of the system
     mac_state.current_scan_process = Some(ScanProcess {
         responder,
-        symbol_duration: phy.symbol_duration(),
+        symbol_duration: phy.symbol_period(),
         end_time: current_time, // This waits 0 time before the first scan begins
         results: ScanConfirm {
             status: Status::Success,

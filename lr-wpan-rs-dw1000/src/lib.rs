@@ -203,7 +203,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
         Ok(Instant::from_ticks(current_time))
     }
 
-    fn symbol_duration(&self) -> Duration {
+    fn symbol_period(&self) -> Duration {
         Duration::from_ticks(65536)
     }
 

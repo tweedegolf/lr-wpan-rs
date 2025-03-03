@@ -213,7 +213,7 @@ async fn wait_for_radio_event<P: Phy>(
             return RadioEvent::Error;
         }
     };
-    let symbol_duration = phy.symbol_duration();
+    let symbol_duration = phy.symbol_period();
     let current_time_symbols = current_time / symbol_duration;
 
     // TODO: Figure out when exactly we should put the radio in RX
@@ -292,7 +292,7 @@ async fn handle_radio_event<'a, P: Phy>(
             }
             RadioEvent::OwnSuperframeStartMissed { start_time } => {
                 // Reset so hopefully the next time works out
-                mac_pib.beacon_tx_time = start_time / phy.symbol_duration();
+                mac_pib.beacon_tx_time = start_time / phy.symbol_period();
             }
             RadioEvent::OwnSuperframeEnd => {
                 mac_state.own_superframe_active = false;
@@ -314,7 +314,7 @@ async fn handle_radio_event<'a, P: Phy>(
                         mac_pib,
                         mac_handler,
                         indirect_indications.as_mut(),
-                        phy.symbol_duration(),
+                        phy.symbol_period(),
                     )
                     .await
                     {
@@ -380,7 +380,7 @@ async fn send_ack(
     });
 
     // TODO: Actually schedule this according to the rules (5.1.6.4.2)
-    let ack_send_time = receive_time + phy.symbol_duration() * mac_pib.sifs_period as i64;
+    let ack_send_time = receive_time + phy.symbol_period() * mac_pib.sifs_period as i64;
     trace!("Sending ack at {}", ack_send_time);
 
     match phy
@@ -464,8 +464,8 @@ async fn perform_data_request(
             false,
             true, // TODO: Unless in superframe
             SendContinuation::WaitForResponse {
-                turnaround_time: phy.symbol_duration() * crate::consts::TURNAROUND_TIME as i64,
-                timeout: phy.symbol_duration() * ack_wait_duration,
+                turnaround_time: phy.symbol_period() * crate::consts::TURNAROUND_TIME as i64,
+                timeout: phy.symbol_period() * ack_wait_duration,
             },
         )
         .await;
@@ -775,7 +775,7 @@ async fn send_beacon(
         }
     }
 
-    mac_pib.beacon_tx_time = send_time / phy.symbol_duration();
+    mac_pib.beacon_tx_time = send_time / phy.symbol_period();
 }
 
 enum RadioEvent<P: Phy> {

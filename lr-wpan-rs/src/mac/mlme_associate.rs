@@ -103,8 +103,8 @@ pub async fn process_associate_request<'a>(
             false,
             true,
             SendContinuation::WaitForResponse {
-                turnaround_time: phy.symbol_duration() * crate::consts::TURNAROUND_TIME as i64,
-                timeout: phy.symbol_duration() * ack_wait_duration,
+                turnaround_time: phy.symbol_period() * crate::consts::TURNAROUND_TIME as i64,
+                timeout: phy.symbol_period() * ack_wait_duration,
             },
         )
         .await;
@@ -167,7 +167,7 @@ pub async fn process_associate_request<'a>(
             mode: DataRequestMode::Independent {
                 timestamp: Some(
                     ack_timestamp
-                        + phy.symbol_duration()
+                        + phy.symbol_period()
                             * crate::consts::BASE_SUPERFRAME_DURATION as i64
                             * mac_pib.response_wait_time as i64,
                 ),

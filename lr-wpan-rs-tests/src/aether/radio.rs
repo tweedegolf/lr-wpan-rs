@@ -78,7 +78,7 @@ impl Phy for AetherRadio {
         Ok(self.aether().simulation_time().now())
     }
 
-    fn symbol_duration(&self) -> lr_wpan_rs::time::Duration {
+    fn symbol_period(&self) -> lr_wpan_rs::time::Duration {
         lr_wpan_rs::time::Duration::from_ticks(10000)
     }
 
