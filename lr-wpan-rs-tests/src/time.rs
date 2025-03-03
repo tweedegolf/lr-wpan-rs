@@ -40,12 +40,23 @@ impl SimulationTime {
         Instant::from_ticks(now_ticks)
     }
 
-    pub async fn delay(&'static self, duration: Duration) {
+    /// Returns the end time
+    pub async fn delay(&'static self, duration: Duration) -> Instant {
         if duration.ticks().is_negative() {
             panic!("Cannot delay a negative amount of time: {}", duration);
         }
 
         let end_time = self.now() + duration;
+
+        self.delay_until(end_time).await;
+
+        end_time
+    }
+
+    pub async fn delay_until(&'static self, end_time: Instant) {
+        if end_time < self.now() {
+            panic!("Cannot delay until a time that has already passed");
+        }
 
         self.delay_waits
             .wait_for_value(|| {

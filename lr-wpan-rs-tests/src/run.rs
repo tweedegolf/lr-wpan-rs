@@ -1,7 +1,6 @@
 use std::{future::Future, sync::Arc};
 
 use async_executor::{Executor, Task};
-use log::trace;
 use lr_wpan_rs::{
     mac::{MacCommander, MacConfig},
     wire::ExtendedAddress,
@@ -9,7 +8,7 @@ use lr_wpan_rs::{
 use rand::{rngs::StdRng, SeedableRng};
 
 use super::aether::Aether;
-use crate::time::SimulationTime;
+use crate::{aether::Coordinate, time::SimulationTime};
 
 /// Run multiple mac engines
 pub fn create_test_runner<'a>(
@@ -28,7 +27,8 @@ pub fn create_test_runner<'a>(
         .map(|i| {
             let commanders = commanders.clone();
             executor.spawn({
-                let radio = aether.radio();
+                let mut radio = aether.radio();
+                radio.move_to(Coordinate::new(i as f64, 0.0));
                 async move {
                     lr_wpan_rs::mac::run_mac_engine(
                         radio,
@@ -72,7 +72,6 @@ impl<'a> TestRunner<'a> {
     pub fn run(mut self) {
         loop {
             if !self.executor.try_tick() {
-                trace!("Ticking time along...");
                 self.simulation_time.tick();
             }
 

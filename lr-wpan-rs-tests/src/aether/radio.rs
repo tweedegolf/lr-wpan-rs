@@ -92,12 +92,11 @@ impl Phy for AetherRadio {
     ) -> Result<SendResult, Self::Error> {
         trace!("Radio send {:?}", self.node_id);
 
-        let mut now = self.simulation_time().now();
-        let send_time = send_time.unwrap_or(now);
-        self.simulation_time()
-            .delay(send_time.duration_since(now))
-            .await;
-        now = send_time;
+        if let Some(send_time) = send_time {
+            self.simulation_time().delay_until(send_time).await;
+        }
+
+        let now = self.simulation_time().now();
 
         trace!("Radio send {:?} at: {}", self.node_id, now);
 
@@ -111,7 +110,8 @@ impl Phy for AetherRadio {
                 turnaround_time,
                 timeout,
             } => {
-                self.simulation_time().delay(turnaround_time).await;
+                let receive_start_time = self.simulation_time().delay(turnaround_time).await;
+                trace!("Wait for response start at: {}", receive_start_time);
                 self.start_receive().await?;
 
                 let mut timeout = pin!(self.simulation_time().delay(timeout).fuse());

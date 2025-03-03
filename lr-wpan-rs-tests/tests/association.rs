@@ -166,13 +166,4 @@ async fn run_pan_coordinator(
     }
 
     info!("Running PAN coordinator is done");
-
-    // Reset to disable the PAN
-    pan_coordinator
-        .request(ResetRequest {
-            set_default_pib: true,
-        })
-        .await
-        .status
-        .unwrap();
 }

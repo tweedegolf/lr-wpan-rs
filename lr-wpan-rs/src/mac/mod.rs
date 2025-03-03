@@ -217,11 +217,9 @@ async fn wait_for_radio_event<P: Phy>(
     let current_time_symbols = current_time / symbol_duration;
 
     // TODO: Figure out when exactly we should put the radio in RX
-    // - For example when PAN coordinator, but with beaconorder 15
+    // - For example when PAN coordinator
     // - For example when PIB says so
-    if mac_state.is_pan_coordinator && mac_pib.beacon_order.is_on_demand()
-        || mac_pib.rx_on_when_idle
-    {
+    if mac_state.is_pan_coordinator || mac_pib.rx_on_when_idle {
         if let Err(e) = phy.start_receive().await {
             error!("Could not start receiving: {}", e);
             return RadioEvent::Error;
@@ -383,7 +381,7 @@ async fn send_ack(
 
     // TODO: Actually schedule this according to the rules (5.1.6.4.2)
     let ack_send_time = receive_time + phy.symbol_duration() * mac_pib.sifs_period as i64;
-    trace!("Sending ack");
+    trace!("Sending ack at {}", ack_send_time);
 
     match phy
         .send(
@@ -458,6 +456,7 @@ async fn perform_data_request(
     let message = mac_state.serialize_frame(data_request_frame);
 
     let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
+    debug!("Sending data request");
     let send_result = phy
         .send(
             &message,
@@ -1021,6 +1020,9 @@ async fn process_message<'a, P: Phy>(
                 }
                 _ => warn!("Association request came from frame without correct source field"),
             }
+        }
+        FrameContent::Command(Command::DataRequest) => {
+            todo!("Handle data request");
         }
         content => warn!(
             "Received frame has content we don't yet process: {}",

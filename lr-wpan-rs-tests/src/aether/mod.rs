@@ -53,6 +53,7 @@ use std::{
 use async_channel::{bounded, Sender, TrySendError};
 use byte::TryRead;
 use heapless::Vec;
+use log::warn;
 use lr_wpan_rs::{pib::PhyPib, time::Instant, wire::Frame};
 use pcap_file::{
     pcapng::{
@@ -272,6 +273,8 @@ impl AetherInner {
         let mut closed_radios = vec![];
         let from_pos = self.nodes.get(from).expect("sender always exists").position;
 
+        let mut at_least_one_received = false;
+
         for (to, node) in &self.nodes {
             if from == to || !node.rx_enable {
                 continue;
@@ -282,7 +285,9 @@ impl AetherInner {
             delayed_data.time_stamp += dist.as_duration();
 
             match node.antenna.try_send(delayed_data) {
-                Ok(()) => {}
+                Ok(()) => {
+                    at_least_one_received = true;
+                }
                 Err(TrySendError::Closed(_)) => closed_radios.push(to.clone()),
                 Err(TrySendError::Full(_)) => {
                     log::warn!("Radio antenna of {to:?} is full")
@@ -292,6 +297,10 @@ impl AetherInner {
 
         for closed_radio in closed_radios {
             self.nodes.remove(&closed_radio);
+        }
+
+        if !at_least_one_received {
+            warn!("Sent message was received by no radio");
         }
 
         self.simulation_time.now()
