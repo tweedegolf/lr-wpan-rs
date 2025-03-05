@@ -58,6 +58,10 @@ impl SimulationTime {
             panic!("Cannot delay until a time that has already passed");
         }
 
+        self.delay_until_at_least(end_time).await
+    }
+
+    pub async fn delay_until_at_least(&'static self, end_time: Instant) {
         self.delay_waits
             .wait_for_value(|| {
                 if self.now() >= end_time {

@@ -192,9 +192,8 @@ impl Phy for AetherRadio {
                 page: lr_wpan_rs::ChannelPage::Uwb,
             };
 
-            let now = self.simulation_time().now();
             self.simulation_time()
-                .delay(msg.timestamp.duration_since(now))
+                .delay_until_at_least(msg.timestamp)
                 .await;
 
             return Ok(msg);

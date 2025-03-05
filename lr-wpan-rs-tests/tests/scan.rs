@@ -68,7 +68,7 @@ fn scan_passive() {
                 },
                 gts_permit: false,
                 link_quality: 255,
-                timestamp: Instant::from_ticks(9830400000),
+                timestamp: Instant::from_ticks(9830400426),
                 security_status: None,
                 security_info: SecurityInfo::new_none_security(),
                 code_list: ()
@@ -144,7 +144,7 @@ fn scan_active() {
                 },
                 gts_permit: false,
                 link_quality: 255,
-                timestamp: Instant::from_ticks(9830400000),
+                timestamp: Instant::from_ticks(9830400852),
                 security_status: None,
                 security_info: SecurityInfo::new_none_security(),
                 code_list: ()
