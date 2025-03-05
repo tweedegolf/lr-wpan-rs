@@ -177,6 +177,13 @@ impl<'a> MessageScheduler<'a> {
         Some(self.pending_data.remove(position))
     }
 
+    /// Returns true if there's pending data for the given device
+    pub fn has_pending_data(&self, device_address: DeviceAddress) -> bool {
+        self.pending_data
+            .iter()
+            .any(|pd| pd.device == device_address)
+    }
+
     pub fn schedule_data_request(&mut self, data_request: ScheduledDataRequest<'a>) {
         if self.data_requests.push(data_request).is_err() {
             panic!("Reached data request capacity")
