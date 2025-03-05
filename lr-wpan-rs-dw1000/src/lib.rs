@@ -105,7 +105,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
 
         const NUM_PREAMBLE_SYMBOLS: u32 = 31; // Valid for PRF16
         const NUM_SFD_SYMBOLS: u32 = 8; // For 850kbps datarate
-        const SYMBOLS_PER_OCTET: f32 = 9.17648; // Not too sure... This is `8 * (1s / symbol duration in secs (Tdsym)) / 850_000`
+        const SYMBOLS_PER_OCTET: f32 = 9.17648; // Not too sure... This is `8 * (1s / symbol period in secs (Tdsym)) / 850_000`
         const SHR_DURATION: u32 = NUM_PREAMBLE_SYMBOLS + NUM_SFD_SYMBOLS;
         let max_frame_duration = SHR_DURATION
             + (((lr_wpan_rs::consts::MAX_PHY_PACKET_SIZE + 1) as f32 * SYMBOLS_PER_OCTET).ceil()

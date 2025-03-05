@@ -60,7 +60,7 @@ pub async fn process_scan_request<'a>(
     // Create the process. Making this `Some` will mark the scan as 'in process' for the rest of the system
     mac_state.current_scan_process = Some(ScanProcess {
         responder,
-        symbol_duration: phy.symbol_period(),
+        symbol_period: phy.symbol_period(),
         end_time: current_time, // This waits 0 time before the first scan begins
         results: ScanConfirm {
             status: Status::Success,
@@ -84,8 +84,8 @@ pub async fn process_scan_request<'a>(
 pub struct ScanProcess<'a> {
     /// Responder to the request we got. Eventually this must be answered.
     responder: RequestResponder<'a, ScanRequest>,
-    /// The symbol duration of the phy. This is cached so we don't need to pass the phy around
-    symbol_duration: Duration,
+    /// The symbol period of the phy. This is cached so we don't need to pass the phy around
+    symbol_period: Duration,
     /// The end time of the *current*  channel scan
     end_time: Instant,
     /// Work in progress result that we'll send back to the user
@@ -216,7 +216,7 @@ impl ScanProcess<'_> {
     }
 
     pub fn register_action_as_executed(&mut self, action: ScanAction) {
-        let scan_duration = self.symbol_duration
+        let scan_duration = self.symbol_period
             * (BASE_SUPERFRAME_DURATION
                 * ((1 << self.responder.request.scan_duration.min(14) as u32) + 1))
                 as i64;
@@ -276,6 +276,7 @@ impl ScanProcess<'_> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScanAction {
     StartScan {
         channel: u8,
@@ -284,7 +285,6 @@ pub enum ScanAction {
         /// TODO: According to the spec we should also go through all of the `phyCurrentCode` options
         /// for UWB and CSS. But this has not been implemented in the radio driver yet and we don't *really*
         /// need it. So ignore for now.
-        #[expect(dead_code, reason = "Not yet implemented")]
         current_code: (),
     },
     Finish,

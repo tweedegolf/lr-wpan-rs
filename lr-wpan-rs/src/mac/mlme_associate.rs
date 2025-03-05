@@ -186,7 +186,7 @@ pub async fn process_received_associate_request<'a>(
     device_address: ExtendedAddress,
     capability_information: CapabilityInformation,
     message_timestamp: Instant,
-    symbol_duration: Duration,
+    symbol_period: Duration,
 ) {
     let indirect_response = mac_handler.indicate_indirect(AssociateIndication {
         device_address,
@@ -197,7 +197,7 @@ pub async fn process_received_associate_request<'a>(
     indirect_indications.push(
         indirect_response,
         message_timestamp
-            + symbol_duration
+            + symbol_period
                 * crate::consts::BASE_SUPERFRAME_DURATION as i64
                 * mac_pib.response_wait_time as i64,
     );

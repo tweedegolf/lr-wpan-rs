@@ -213,8 +213,8 @@ async fn wait_for_radio_event<P: Phy>(
             return RadioEvent::Error;
         }
     };
-    let symbol_duration = phy.symbol_period();
-    let current_time_symbols = current_time / symbol_duration;
+    let symbol_period = phy.symbol_period();
+    let current_time_symbols = current_time / symbol_period;
 
     // TODO: Figure out when exactly we should put the radio in RX
     // - For example when PAN coordinator
@@ -231,7 +231,7 @@ async fn wait_for_radio_event<P: Phy>(
         mac_state,
         current_time,
         current_time_symbols,
-        symbol_duration,
+        symbol_period,
         delay.clone(),
     );
 
@@ -240,7 +240,7 @@ async fn wait_for_radio_event<P: Phy>(
         mac_pib,
         current_time_symbols,
         delay.clone(),
-        symbol_duration,
+        symbol_period,
     );
 
     let scan_action = wait_for_channel_scan_action(mac_state, current_time, delay.clone());
@@ -806,7 +806,7 @@ async fn wait_for_own_superframe_start<P: Phy>(
     mac_state: &MacState<'_>,
     current_time: Instant,
     current_time_symbols: i64,
-    symbol_duration: Duration,
+    symbol_period: Duration,
     mut delay: impl DelayNsExt,
 ) -> RadioEvent<P> {
     // Calculate if we have a timeout and for how long
@@ -821,7 +821,7 @@ async fn wait_for_own_superframe_start<P: Phy>(
         (Some(bi), BeaconMode::OnAutonomous) => {
             let next_start_time_symbols = mac_pib.beacon_tx_time + bi.get() as i64;
             let timeout_symbols = next_start_time_symbols - current_time_symbols;
-            Some(timeout_symbols * symbol_duration)
+            Some(timeout_symbols * symbol_period)
         }
         (Some(_), BeaconMode::OnTracking { .. }) => {
             // This beacon tracks another beacon, so will be done in response to a tracked beacon event
@@ -874,7 +874,7 @@ async fn wait_for_own_super_frame_end<P: Phy>(
     mac_pib: &MacPib,
     current_time_symbols: i64,
     mut delay: impl DelayNsExt,
-    symbol_duration: Duration,
+    symbol_period: Duration,
 ) -> RadioEvent<P> {
     match (
         mac_state.own_superframe_active,
@@ -884,7 +884,7 @@ async fn wait_for_own_super_frame_end<P: Phy>(
         (true, Some(superframe_duration)) => {
             let superframe_end_time = mac_pib.beacon_tx_time + superframe_duration.get() as i64;
             let duration_to_go = superframe_end_time - current_time_symbols;
-            delay.delay_duration(duration_to_go * symbol_duration).await;
+            delay.delay_duration(duration_to_go * symbol_period).await;
             RadioEvent::OwnSuperframeEnd
         }
         (false, _) => core::future::pending().await,
@@ -943,7 +943,7 @@ async fn process_message<'a, P: Phy>(
     mac_pib: &MacPib,
     mac_handler: &MacHandler<'a>,
     indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
-    symbol_duration: Duration,
+    symbol_period: Duration,
 ) -> Option<RadioEvent<P>> {
     let Some(frame) = mac_state.deserialize_frame(&mut message.data) else {
         trace!("Received a frame that could not be deserialized");
@@ -1014,7 +1014,7 @@ async fn process_message<'a, P: Phy>(
                         device_address,
                         capability_information,
                         message.timestamp,
-                        symbol_duration,
+                        symbol_period,
                     )
                     .await
                 }
