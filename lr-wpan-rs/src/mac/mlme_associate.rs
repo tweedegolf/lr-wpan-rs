@@ -220,6 +220,11 @@ pub async fn process_received_associate_request<'a>(
     message_timestamp: Instant,
     symbol_period: Duration,
 ) {
+    if !mac_pib.association_permit {
+        warn!("Received an association request while we don't have the `macAssociationPermit` set to true. Ignoring the request");
+        return;
+    }
+
     let indirect_response = mac_handler.indicate_indirect(AssociateIndication {
         device_address,
         capability_information,

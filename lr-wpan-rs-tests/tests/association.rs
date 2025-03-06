@@ -171,6 +171,16 @@ async fn run_pan_coordinator(
         .status
         .unwrap();
 
+    // We are open for association
+    pan_coordinator
+        .request(SetRequest {
+            pib_attribute: PibValue::MAC_ASSOCIATION_PERMIT,
+            pib_attribute_value: PibValue::MacAssociationPermit(true),
+        })
+        .await
+        .status
+        .unwrap();
+
     // Start the PAN without beacons enabled
     pan_coordinator
         .request(StartRequest {
