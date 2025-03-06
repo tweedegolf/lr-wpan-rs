@@ -38,9 +38,9 @@ The list is probably not exhaustive.
 |   ✅    | MLME get                |   ⦿   |                                                                   |                                          |
 |   ✅    | MLME start              |   ⦿   |                                                                   |                                          |
 |   🚧    | MLME scan               |   ⦿   | Active and passive implemented, ED and orphan scans still todo    | 3 days                                   |
-|   🚧    | Data request support    |   ⦿   |                                                                   | 3 days                                   |
+|   🚧    | Data request support    |   ⦿   |                                                                   | 2 days                                   |
 |   🚧    | Acknowledgement support |   ⦿   | Including retransmissions                                         | 2 days                                   |
-|   🚧    | MLME associate          |   ⦿   |                                                                   | 2 days                                   |
+|   ✅    | MLME associate          |   ⦿   |                                                                   |                                          |
 |   ❌    | MLME disassociate       |   ⦿   |                                                                   | 4 days                                   |
 |   ❌    | MLME poll               |   ⦿   | Builds on the 'data request support'                              | 1 day                                    |
 |   ❌    | MCPS data               |   ⦿   | Builds on the 'data request support'                              | 2 days                                   |
