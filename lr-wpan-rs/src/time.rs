@@ -26,6 +26,14 @@ impl Display for Instant {
     }
 }
 
+#[cfg(feature = "defmt-03")]
+impl defmt::Format for Instant {
+    fn format(&self, f: defmt::Formatter) {
+        let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
+        defmt::write!(f, "{:ts}", secs)
+    }
+}
+
 impl Instant {
     pub const fn from_ticks(ticks: u64) -> Self {
         Self { ticks }
@@ -139,7 +147,7 @@ impl Display for Duration {
 impl defmt::Format for Duration {
     fn format(&self, f: defmt::Formatter) {
         let secs = self.ticks as f64 / TICKS_PER_SECOND as f64;
-        defmt::write!(f, "{:.9}", secs)
+        defmt::write!(f, "{}", secs)
     }
 }
 

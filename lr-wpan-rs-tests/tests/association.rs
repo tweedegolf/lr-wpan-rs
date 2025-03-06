@@ -10,7 +10,7 @@ use lr_wpan_rs::{
         scan::ScanRequest,
         set::SetRequest,
         start::StartRequest,
-        IndicationValue, SecurityInfo, Status,
+        IndicationValue, SecurityInfo,
     },
     wire::{
         beacon::{BeaconOrder, SuperframeOrder},
