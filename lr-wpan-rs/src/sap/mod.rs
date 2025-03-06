@@ -95,6 +95,7 @@ pub enum Status {
     InvalidHandle,
     PhyError,
     ReadOnly,
+    AlreadyAssociated,
 }
 
 impl Status {
@@ -525,6 +526,7 @@ impl From<AssociateIndication> for IndicationValue {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum ResponseValue {
     Associate(AssociateResponse),
     Orphan(OrphanResponse),

@@ -105,7 +105,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
 
         const NUM_PREAMBLE_SYMBOLS: u32 = 31; // Valid for PRF16
         const NUM_SFD_SYMBOLS: u32 = 8; // For 850kbps datarate
-        const SYMBOLS_PER_OCTET: f32 = 9.17648; // Not too sure... This is `8 * (1s / symbol duration in secs (Tdsym)) / 850_000`
+        const SYMBOLS_PER_OCTET: f32 = 9.17648; // Not too sure... This is `8 * (1s / symbol period in secs (Tdsym)) / 850_000`
         const SHR_DURATION: u32 = NUM_PREAMBLE_SYMBOLS + NUM_SFD_SYMBOLS;
         let max_frame_duration = SHR_DURATION
             + (((lr_wpan_rs::consts::MAX_PHY_PACKET_SIZE + 1) as f32 * SYMBOLS_PER_OCTET).ceil()
@@ -203,7 +203,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
         Ok(Instant::from_ticks(current_time))
     }
 
-    fn symbol_duration(&self) -> Duration {
+    fn symbol_period(&self) -> Duration {
         Duration::from_ticks(65536)
     }
 
@@ -286,7 +286,7 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
             self.start_receive().await?;
         }
 
-        Ok(lr_wpan_rs::phy::SendResult::Success(tx_time))
+        Ok(lr_wpan_rs::phy::SendResult::Success(tx_time, None))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
@@ -493,8 +493,8 @@ impl<SPI: SpiDevice, IRQ: Wait, DELAY: DelayNs> Phy for DW1000Phy<SPI, IRQ, DELA
         }
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&lr_wpan_rs::pib::PhyPib, Self::Error> {
-        Ok(&self.phy_pib)
+    fn get_phy_pib(&mut self) -> &lr_wpan_rs::pib::PhyPib {
+        &self.phy_pib
     }
 }
 

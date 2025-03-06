@@ -2,15 +2,21 @@ use arraydeque::ArrayDeque;
 use heapless::Vec;
 use rand_core::RngCore;
 
-use super::{callback::SendCallback, mlme_scan::ScanProcess, MacConfig};
+use super::{
+    callback::{DataRequestCallback, SendCallback},
+    mlme_scan::ScanProcess,
+    MacConfig,
+};
 use crate::{
-    sap::SecurityInfo,
-    time::DelayNsExt,
+    sap::{SecurityInfo, Status},
+    time::{DelayNsExt, Instant},
     wire::{
         beacon::{GuaranteedTimeSlotInformation, PendingAddress},
+        command::AssociationStatus,
         security::{default::Unimplemented, SecurityContext},
-        FooterMode, FrameSerDesContext,
+        FooterMode, FrameSerDesContext, ShortAddress,
     },
+    DeviceAddress,
 };
 
 pub struct MacState<'a> {
@@ -27,7 +33,7 @@ pub struct MacState<'a> {
     pub current_gts: GuaranteedTimeSlotInformation,
     /// Are we currently in our own superframe?
     pub own_superframe_active: bool,
-
+    /// If some, contains the state of the current scan being done
     pub current_scan_process: Option<ScanProcess<'a>>,
 
     security_context: SecurityContext<Unimplemented, Unimplemented>,
@@ -38,6 +44,8 @@ impl MacState<'_> {
         Self {
             message_scheduler: MessageScheduler {
                 scheduled_broadcasts: ArrayDeque::new(),
+                data_requests: Vec::new(),
+                pending_data: Vec::new(),
             },
             beacon_security_info: Default::default(),
             coordinator_beacon_tracked: false,
@@ -105,6 +113,9 @@ pub struct MessageScheduler<'a> {
     ///
     /// The messages are sent using CSMA-CA.
     scheduled_broadcasts: ArrayDeque<ScheduledMessage<'a>, 4>,
+    data_requests: Vec<ScheduledDataRequest<'a>, 1>,
+    /// Data that's pending being requested by a data request
+    pending_data: Vec<PendingData, 16>,
 }
 
 impl<'a> MessageScheduler<'a> {
@@ -146,13 +157,130 @@ impl<'a> MessageScheduler<'a> {
     }
 
     pub fn get_pending_addresses(&self) -> PendingAddress {
+        // TODO: Use pending data
         PendingAddress::new()
+    }
+
+    pub fn push_pending_data(&mut self, data: PendingData) -> Result<(), Status> {
+        // TODO: Clean up data based on time
+        match self.pending_data.push(data) {
+            Ok(()) => Ok(()),
+            Err(_) => Err(Status::TransactionOverflow),
+        }
+    }
+
+    pub fn take_pending_data(&mut self, device_address: DeviceAddress) -> Option<PendingData> {
+        let position = self
+            .pending_data
+            .iter()
+            .position(|pd| pd.device == device_address)?;
+        Some(self.pending_data.remove(position))
+    }
+
+    /// Returns true if there's pending data for the given device
+    pub fn has_pending_data(&self, device_address: DeviceAddress) -> bool {
+        self.pending_data
+            .iter()
+            .any(|pd| pd.device == device_address)
+    }
+
+    pub fn schedule_data_request(&mut self, data_request: ScheduledDataRequest<'a>) {
+        if self.data_requests.push(data_request).is_err() {
+            panic!("Reached data request capacity")
+        }
+    }
+
+    #[expect(unused, reason = "For now")]
+    pub fn get_scheduled_superframe_data_request(&self) -> Option<&ScheduledDataRequest<'a>> {
+        self.data_requests
+            .iter()
+            .find(|request| !request.mode.is_independent())
+    }
+
+    #[expect(unused, reason = "For now")]
+    pub fn take_scheduled_superframe_data_request(&mut self) -> Option<ScheduledDataRequest<'a>> {
+        let (index, _) = self
+            .data_requests
+            .iter()
+            .enumerate()
+            .find(|(_, request)| !request.mode.is_independent())?;
+
+        Some(self.data_requests.remove(index))
+    }
+
+    pub fn get_scheduled_independent_data_request(&self) -> Option<&ScheduledDataRequest<'a>> {
+        self.data_requests
+            .iter()
+            .find(|request| request.mode.is_independent())
+    }
+
+    pub fn take_scheduled_independent_data_request(&mut self) -> Option<ScheduledDataRequest<'a>> {
+        let (index, _) = self
+            .data_requests
+            .iter()
+            .enumerate()
+            .find(|(_, request)| request.mode.is_independent())?;
+
+        Some(self.data_requests.remove(index))
     }
 }
 
 pub struct ScheduledMessage<'a> {
     pub data: Vec<u8, { crate::consts::MAX_PHY_PACKET_SIZE }>,
     pub callback: SendCallback<'a>,
+}
+
+pub struct PendingData {
+    pub device: DeviceAddress,
+    pub data_value: PendingDataValue,
+    #[expect(unused, reason = "For now")]
+    pub registration_time: Instant,
+}
+
+pub enum PendingDataValue {
+    AssociationResponse {
+        short_address: ShortAddress,
+        association_status: AssociationStatus,
+    },
+}
+
+pub struct ScheduledDataRequest<'a> {
+    pub mode: DataRequestMode,
+    pub trigger: DataRequestTrigger,
+    #[expect(unused, reason = "For now")]
+    pub used_security_info: SecurityInfo,
+    pub callback: DataRequestCallback<'a>,
+}
+
+pub enum DataRequestMode {
+    /// The data request shall be sent in the CAP of the superframe
+    #[expect(unused, reason = "For now")]
+    InSuperFrame,
+    /// The data request shall be sent without regard for beacons at the given timestamp
+    Independent {
+        /// The time at which the data request shall be sent.
+        /// If none, that means immediately (or when its turn started).
+        timestamp: Option<Instant>,
+    },
+}
+
+impl DataRequestMode {
+    /// Returns `true` if the data request mode is [`Independent`].
+    ///
+    /// [`Independent`]: DataRequestMode::Independent
+    #[must_use]
+    pub fn is_independent(&self) -> bool {
+        matches!(self, Self::Independent { .. })
+    }
+}
+
+/// What triggered the sending of this data request?
+pub enum DataRequestTrigger {
+    #[expect(unused, reason = "For now")]
+    BeaconPendingDataIndication,
+    #[expect(unused, reason = "For now")]
+    MlmePoll,
+    Association,
 }
 
 #[derive(Debug, Clone, Copy)]

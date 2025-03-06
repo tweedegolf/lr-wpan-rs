@@ -461,8 +461,7 @@ pub struct MacPib {
     /// As defined in 8.1.3
     #[doc(alias = "macLIFSPeriod")]
     pub lifs_period: u8,
-    /// The minimum time forming a SIFS
-    /// period.
+    /// The minimum time in number of symbols forming a SIFS period.
     ///
     /// ## Range
     /// As defined in 8.1.3
@@ -523,7 +522,7 @@ impl MacPib {
                 min_be: 0,
                 pan_id: PanId::broadcast(),
                 promiscuous_mode: false,
-                response_wait_time: 0,
+                response_wait_time: 64,
                 rx_on_when_idle: false,
                 security_enabled: false,
                 short_address: ShortAddress::BROADCAST,
@@ -534,8 +533,8 @@ impl MacPib {
             },
             extended_address: ExtendedAddress::BROADCAST,
             beacon_tx_time: 0,
-            lifs_period: 0,
-            sifs_period: 0,
+            lifs_period: 40,
+            sifs_period: 12,
             ranging_supported: false,
             superframe_order: SuperframeOrder::Inactive,
             sync_symbol_offset: 0,

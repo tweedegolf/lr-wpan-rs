@@ -1,15 +1,23 @@
-use core::fmt::{Debug, Display};
+use core::{
+    fmt::{Debug, Display},
+    pin::{pin, Pin},
+};
 
 use crate::{
     phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::MacPib,
-    sap::{scan::ScanType, RequestValue, Status},
+    sap::{
+        associate::AssociateConfirm, scan::ScanType, RequestValue, ResponseValue, SecurityInfo,
+        Status,
+    },
     time::{DelayNsExt, Duration, Instant},
-    wire::command::Command,
+    wire::{command::Command, Address, FrameType},
+    DeviceAddress,
 };
 
 mod callback;
 mod commander;
+mod mlme_associate;
 mod mlme_get;
 mod mlme_reset;
 mod mlme_scan;
@@ -17,21 +25,23 @@ mod mlme_set;
 mod mlme_start;
 mod state;
 
-use commander::MacHandler;
 pub use commander::{IndicationResponder, MacCommander};
-use embassy_futures::select::{select, Either};
+use commander::{IndirectIndicationCollection, MacHandler};
+use embassy_futures::select::{select3, Either, Either3};
 use futures::FutureExt;
+use mlme_associate::{process_associate_request, process_associate_response};
 use mlme_get::process_get_request;
 use mlme_reset::process_reset_request;
 use mlme_scan::{process_scan_request, ScanAction};
 use mlme_set::process_set_request;
 use mlme_start::process_start_request;
 use rand_core::RngCore;
-use state::{BeaconMode, MacState};
+use state::{BeaconMode, DataRequestMode, MacState, PendingDataValue, ScheduledDataRequest};
 
 use crate::wire::{ExtendedAddress, Frame, FrameContent, PanId, ShortAddress};
 
 const BEACON_PLANNING_HEADROOM: Duration = Duration::from_millis(20);
+const DATA_REQUEST_PLANNING_HEADROOM: Duration = Duration::from_millis(20);
 
 /// Run the MAC layer of the IEEE protocol.
 ///
@@ -45,19 +55,41 @@ pub async fn run_mac_engine<'a, Rng: RngCore, Delay: DelayNsExt>(
     let handler = commander.get_handler();
     let mut mac_pib = MacPib::dummy_new();
     let mut mac_state = MacState::new(&config);
+    let mut indirect_indications = core::pin::pin!(IndirectIndicationCollection::new());
 
     loop {
-        let result = select(
-            wait_for_radio_event(&mut phy, &mut mac_pib, &mut mac_state, &mut config.delay),
+        let current_time = match phy.get_instant().await {
+            Ok(current_time) => current_time,
+            Err(e) => {
+                error!("Could not get the current time: {}", e);
+                continue;
+            }
+        };
+
+        let result = select3(
+            wait_for_radio_event(&mut phy, &mac_pib, &mac_state, &config.delay),
+            indirect_indications.as_mut().wait(current_time),
             handler.wait_for_request(),
         )
         .await;
 
         match result {
-            Either::First(event) => {
-                handle_radio_event(event, &mut phy, &mut mac_pib, &mut mac_state, &handler).await
+            Either3::First(event) => {
+                handle_radio_event(
+                    event,
+                    &mut phy,
+                    &mut mac_pib,
+                    &mut mac_state,
+                    &handler,
+                    indirect_indications.as_mut(),
+                    &mut config.delay,
+                )
+                .await
             }
-            Either::Second(responder) => {
+            Either3::Second(indication_response_value) => {
+                handle_response(indication_response_value, &mut phy, &mut mac_state).await
+            }
+            Either3::Third(responder) => {
                 handle_request(
                     responder,
                     &mut phy,
@@ -79,7 +111,9 @@ async fn handle_request<'a, Rng: RngCore, Delay: DelayNsExt>(
     config: &mut MacConfig<Rng, Delay>,
 ) {
     match &responder.request {
-        RequestValue::Associate(_) => todo!(),
+        RequestValue::Associate(_) => {
+            process_associate_request(phy, mac_pib, mac_state, responder.into_concrete()).await
+        }
         RequestValue::Disassociate(_) => todo!(),
         RequestValue::Get(_) => {
             process_get_request(phy, &*mac_pib, responder.into_concrete()).await
@@ -105,6 +139,28 @@ async fn handle_request<'a, Rng: RngCore, Delay: DelayNsExt>(
         RequestValue::Calibrate(_) => todo!(),
         RequestValue::Data(_) => todo!(),
         RequestValue::Purge(_) => todo!(),
+    }
+}
+
+async fn handle_response(
+    indication_response_value: ResponseValue,
+    phy: &mut impl Phy,
+    mac_state: &mut MacState<'_>,
+) {
+    let current_time = match phy.get_instant().await {
+        Ok(current_time) => current_time,
+        Err(e) => {
+            error!("Could not get the current time, so we can't process the indication_response_value: {}", e);
+            return;
+        }
+    };
+
+    match indication_response_value {
+        crate::sap::ResponseValue::Associate(associate_response) => {
+            process_associate_response(associate_response, current_time, mac_state).await
+        }
+        crate::sap::ResponseValue::Orphan(_orphan_response) => todo!(),
+        crate::sap::ResponseValue::None => todo!(),
     }
 }
 
@@ -151,9 +207,9 @@ impl<PE> From<MacError<PE>> for Status {
 /// The split is there because it allows this function to be cancellable.
 async fn wait_for_radio_event<P: Phy>(
     phy: &mut P,
-    mac_pib: &mut MacPib,
-    mac_state: &mut MacState<'_>,
-    delay: &mut impl DelayNsExt,
+    mac_pib: &MacPib,
+    mac_state: &MacState<'_>,
+    delay: &impl DelayNsExt,
 ) -> RadioEvent<P> {
     let current_time = match phy.get_instant().await {
         Ok(current_time) => current_time,
@@ -162,15 +218,13 @@ async fn wait_for_radio_event<P: Phy>(
             return RadioEvent::Error;
         }
     };
-    let symbol_duration = phy.symbol_duration();
-    let current_time_symbols = current_time / symbol_duration;
+    let symbol_period = phy.symbol_period();
+    let current_time_symbols = current_time / symbol_period;
 
     // TODO: Figure out when exactly we should put the radio in RX
-    // - For example when PAN coordinator, but with beaconorder 15
+    // - For example when PAN coordinator
     // - For example when PIB says so
-    if mac_state.is_pan_coordinator && mac_pib.beacon_order.is_on_demand()
-        || mac_pib.rx_on_when_idle
-    {
+    if mac_state.is_pan_coordinator || mac_pib.rx_on_when_idle {
         if let Err(e) = phy.start_receive().await {
             error!("Could not start receiving: {}", e);
             return RadioEvent::Error;
@@ -182,7 +236,7 @@ async fn wait_for_radio_event<P: Phy>(
         mac_state,
         current_time,
         current_time_symbols,
-        symbol_duration,
+        symbol_period,
         delay.clone(),
     );
 
@@ -191,10 +245,13 @@ async fn wait_for_radio_event<P: Phy>(
         mac_pib,
         current_time_symbols,
         delay.clone(),
-        symbol_duration,
+        symbol_period,
     );
 
     let scan_action = wait_for_channel_scan_action(mac_state, current_time, delay.clone());
+
+    let independent_data_request =
+        wait_for_independent_data_request(mac_state, current_time, delay.clone());
 
     let phy_wait = phy.wait();
 
@@ -217,17 +274,25 @@ async fn wait_for_radio_event<P: Phy>(
         event = scan_action.fuse() => {
             event
         }
+        event = independent_data_request.fuse() => {
+            event
+        }
     }
 }
 
-async fn handle_radio_event<P: Phy>(
-    mut event: RadioEvent<P>,
+async fn handle_radio_event<'a, P: Phy>(
+    event: RadioEvent<P>,
     phy: &mut P,
     mac_pib: &mut MacPib,
-    mac_state: &mut MacState<'_>,
-    mac_handler: &MacHandler<'_>,
+    mac_state: &mut MacState<'a>,
+    mac_handler: &MacHandler<'a>,
+    mut indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
+    delay: &mut impl DelayNsExt,
 ) {
-    loop {
+    let mut next_events = arraydeque::ArrayDeque::<_, 4>::new();
+    next_events.push_back(event).unwrap();
+
+    while let Some(event) = next_events.pop_front() {
         match event {
             RadioEvent::Error => todo!(),
             RadioEvent::BeaconRequested => send_beacon(mac_state, mac_pib, phy, None, true).await,
@@ -236,7 +301,7 @@ async fn handle_radio_event<P: Phy>(
             }
             RadioEvent::OwnSuperframeStartMissed { start_time } => {
                 // Reset so hopefully the next time works out
-                mac_pib.beacon_tx_time = start_time / phy.symbol_duration();
+                mac_pib.beacon_tx_time = start_time / phy.symbol_period();
             }
             RadioEvent::OwnSuperframeEnd => {
                 mac_state.own_superframe_active = false;
@@ -252,12 +317,16 @@ async fn handle_radio_event<P: Phy>(
             }
             RadioEvent::PhyWaitDone { context } => match phy.process(context).await {
                 Ok(Some(message)) => {
-                    if let Some(next_event) =
-                        process_message::<P>(message, mac_state, mac_pib, mac_handler).await
-                    {
-                        event = next_event;
-                        continue;
-                    }
+                    process_message::<P>(
+                        message,
+                        mac_state,
+                        mac_pib,
+                        mac_handler,
+                        indirect_indications.as_mut(),
+                        phy.symbol_period(),
+                        &mut next_events,
+                    )
+                    .await;
                 }
                 Ok(None) => {}
                 Err(e) => {
@@ -265,12 +334,441 @@ async fn handle_radio_event<P: Phy>(
                 }
             },
             RadioEvent::ScanAction(scan_action) => {
+                debug!("Performing scan action");
                 perform_scan_action(scan_action, phy, mac_state, mac_pib).await
             }
+            RadioEvent::SendScheduledIndependentDataRequest => {
+                debug!("Sending data request");
+                perform_data_request(
+                    mac_state
+                        .message_scheduler
+                        .take_scheduled_independent_data_request()
+                        .unwrap(),
+                    phy,
+                    mac_state,
+                    mac_pib,
+                    delay,
+                )
+                .await
+            }
+            RadioEvent::SendAck {
+                receive_time,
+                seq,
+                frame_pending,
+            } => {
+                debug!("Sending ack");
+                send_ack(phy, mac_pib, mac_state, receive_time, seq, frame_pending).await
+            }
+            RadioEvent::SendPendingData {
+                request_receive_time,
+                device_address,
+            } => {
+                debug!("Sending pending data");
+                send_pending_data(
+                    phy,
+                    mac_pib,
+                    mac_state,
+                    request_receive_time,
+                    device_address,
+                )
+                .await
+            }
         }
-
-        break;
     }
+}
+
+async fn send_pending_data(
+    phy: &mut impl Phy,
+    mac_pib: &mut MacPib,
+    mac_state: &mut MacState<'_>,
+    #[expect(unused, reason = "TODO to use")] request_receive_time: Instant,
+    device_address: DeviceAddress,
+) {
+    use crate::wire;
+
+    let data = mac_state
+        .message_scheduler
+        .take_pending_data(device_address);
+    let has_more_data = mac_state.message_scheduler.has_pending_data(device_address);
+
+    let dsn = mac_pib.dsn.increment();
+
+    let frame = match data.as_ref().map(|pd| &pd.data_value) {
+        Some(PendingDataValue::AssociationResponse {
+            short_address,
+            association_status,
+        }) => Frame {
+            header: wire::Header {
+                frame_type: wire::FrameType::MacCommand,
+                frame_pending: has_more_data,
+                ack_request: true,
+                pan_id_compress: true,
+                seq_no_suppress: false,
+                ie_present: false,
+                version: wire::FrameVersion::Ieee802154_2003,
+                seq: dsn,
+                destination: Some(device_address.with_pan(mac_pib.pan_id)),
+                source: Some(wire::Address::Extended(
+                    mac_pib.pan_id,
+                    mac_pib.extended_address,
+                )),
+                auxiliary_security_header: None,
+            },
+            content: wire::FrameContent::Command(Command::AssociationResponse(
+                *short_address,
+                *association_status,
+            )),
+            payload: &[],
+            footer: [0, 0],
+        },
+        // If no pending data, send an empty data response
+        None => Frame {
+            header: wire::Header {
+                frame_type: wire::FrameType::Data,
+                frame_pending: has_more_data,
+                ack_request: false,
+                pan_id_compress: true,
+                seq_no_suppress: false,
+                ie_present: false,
+                version: wire::FrameVersion::Ieee802154_2003,
+                seq: dsn,
+                destination: Some(device_address.with_pan(mac_pib.pan_id)),
+                source: Some(wire::Address::Extended(
+                    mac_pib.pan_id,
+                    mac_pib.extended_address,
+                )),
+                auxiliary_security_header: None,
+            },
+            content: wire::FrameContent::Data,
+            payload: &[],
+            footer: [0, 0],
+        },
+    };
+
+    let ack_required = frame.header.ack_request;
+    let message = mac_state.serialize_frame(frame);
+
+    let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
+
+    // TODO: This can be sent without CSMA too if we're in a superframe and there's time remaining, and then only on a backoff period boundary: 5.1.6.3
+    // That should probably be done if we're in a superframe since it's nice and efficient
+    let ack = match phy
+        .send(
+            &message,
+            None,
+            false,
+            true,
+            if ack_required {
+                SendContinuation::WaitForResponse {
+                    turnaround_time: phy.symbol_period() * crate::consts::TURNAROUND_TIME as i64,
+                    timeout: phy.symbol_period() * ack_wait_duration,
+                }
+            } else {
+                SendContinuation::Idle
+            },
+        )
+        .await
+    {
+        Ok(SendResult::Success(_, None)) => None,
+        Ok(SendResult::Success(_, Some(mut response))) => {
+            // See if what we received was an Ack for us
+            match mac_state.deserialize_frame(&mut response.data) {
+                Some(frame) => {
+                    if matches!(frame.header.frame_type, FrameType::Acknowledgement)
+                        && frame.header.seq == dsn
+                    {
+                        Some((response.timestamp, frame.header.frame_pending))
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        }
+        Ok(SendResult::ChannelAccessFailure) => {
+            warn!("CSMA failed for sending request data response");
+            if let Some(data) = data {
+                // We could not send, so push back onto the queue
+                mac_state.message_scheduler.push_pending_data(data).unwrap();
+            }
+            // TODO: We probably need to do something here
+            return;
+        }
+        Err(e) => {
+            error!("Could not send an ack: {}", e);
+            // TODO: Not sure how we can recover
+            return;
+        }
+    };
+
+    if ack_required && ack.is_none() {
+        todo!("No ack received. No retry implemented yet");
+    }
+}
+
+async fn send_ack(
+    phy: &mut impl Phy,
+    mac_pib: &mut MacPib,
+    mac_state: &mut MacState<'_>,
+    receive_time: Instant,
+    seq: u8,
+    frame_pending: bool,
+) {
+    use crate::wire;
+
+    let data = mac_state.serialize_frame(Frame {
+        header: wire::Header {
+            frame_type: wire::FrameType::Acknowledgement,
+            frame_pending,
+            ack_request: false,
+            pan_id_compress: false,
+            seq_no_suppress: false,
+            ie_present: false,
+            version: wire::FrameVersion::Ieee802154_2003,
+            seq,
+            destination: None,
+            source: None,
+            auxiliary_security_header: None,
+        },
+        content: wire::FrameContent::Acknowledgement,
+        payload: &[],
+        footer: [0, 0],
+    });
+
+    // TODO: Actually schedule this according to the rules (5.1.6.4.2)
+    let ack_send_time = receive_time + phy.symbol_period() * mac_pib.sifs_period as i64;
+
+    match phy
+        .send(
+            &data,
+            Some(ack_send_time),
+            false,
+            false,
+            SendContinuation::Idle,
+        )
+        .await
+    {
+        Ok(SendResult::Success(_, _)) => {
+            // Cool, continue
+        }
+        Ok(SendResult::ChannelAccessFailure) => {
+            unreachable!();
+        }
+        Err(e) => {
+            error!("Could not send an ack: {}", e);
+        }
+    }
+}
+
+// 5.1.6.3
+async fn perform_data_request(
+    data_request: ScheduledDataRequest<'_>,
+    phy: &mut impl Phy,
+    mac_state: &mut MacState<'_>,
+    mac_pib: &mut MacPib,
+    delay: &mut impl DelayNsExt,
+) {
+    let send_time = match data_request.mode {
+        DataRequestMode::InSuperFrame => todo!(),
+        DataRequestMode::Independent { timestamp } => timestamp,
+    };
+
+    let (destination_address, source_address) = match data_request.trigger {
+        state::DataRequestTrigger::BeaconPendingDataIndication => todo!(),
+        state::DataRequestTrigger::MlmePoll => todo!(),
+        state::DataRequestTrigger::Association => {
+            let destination = if mac_pib.coord_short_address.0 == 0xFFFE {
+                Address::Extended(mac_pib.pan_id, mac_pib.coord_extended_address)
+            } else {
+                Address::Short(mac_pib.pan_id, mac_pib.coord_short_address)
+            };
+
+            let source = Address::Extended(mac_pib.pan_id, mac_pib.extended_address);
+
+            (Some(destination), source)
+        }
+    };
+
+    let dsn = mac_pib.dsn.increment();
+    let data_request_frame = Frame {
+        header: crate::wire::Header {
+            frame_type: crate::wire::FrameType::MacCommand,
+            frame_pending: false,
+            ack_request: true,
+            pan_id_compress: destination_address.is_none(),
+            seq_no_suppress: false,
+            ie_present: false,
+            version: crate::wire::FrameVersion::Ieee802154_2003,
+            seq: dsn,
+            destination: destination_address,
+            source: Some(source_address),
+            auxiliary_security_header: None,
+        },
+        content: FrameContent::Command(Command::DataRequest),
+        payload: &[],
+        footer: [0; 2],
+    };
+
+    let message = mac_state.serialize_frame(data_request_frame);
+
+    let ack_wait_duration = mac_pib.ack_wait_duration(phy.get_phy_pib()) as i64;
+
+    let send_result = phy
+        .send(
+            &message,
+            send_time,
+            false,
+            true, // TODO: Unless in superframe
+            SendContinuation::WaitForResponse {
+                turnaround_time: phy.symbol_period() * crate::consts::TURNAROUND_TIME as i64,
+                timeout: phy.symbol_period() * ack_wait_duration,
+            },
+        )
+        .await;
+
+    let ack = match send_result {
+        Ok(SendResult::Success(_, None)) => None,
+        Ok(SendResult::Success(_, Some(mut response))) => {
+            // See if what we received was an Ack for us
+            match mac_state.deserialize_frame(&mut response.data) {
+                Some(frame) => {
+                    if matches!(frame.header.frame_type, FrameType::Acknowledgement)
+                        && frame.header.seq == dsn
+                    {
+                        Some((response.timestamp, frame.header.frame_pending))
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            }
+        }
+        Ok(SendResult::ChannelAccessFailure) => {
+            warn!("Could not send the data request: ChannelAccessFailure");
+            data_request
+                .callback
+                .run_associate(Err(Err(Status::ChannelAccessFailure)), mac_pib)
+                .await;
+            return;
+        }
+        Err(e) => {
+            error!("Could not send the data request: {}", e);
+            data_request
+                .callback
+                .run_associate(Err(Err(Status::PhyError)), mac_pib)
+                .await;
+            return;
+        }
+    };
+
+    let Some((_ack_timestamp, frame_pending)) = ack else {
+        todo!("No ack received for data request. Retransmission: TODO");
+    };
+
+    if !frame_pending {
+        trace!("No data available at the coordinator");
+        data_request
+            .callback
+            .run_associate(Err(Err(Status::NoData)), mac_pib)
+            .await;
+        return;
+    }
+
+    // TODO: Refactor listening to common function
+
+    // Turn on receiver for macMaxFrameTotalWaitTime to receive the association response
+    let on_duration =
+        phy.symbol_period() * mac_pib.max_frame_total_wait_time(phy.get_phy_pib()).into();
+    let mut on_delay = pin!(delay.delay_duration(on_duration));
+
+    if let Err(e) = phy.start_receive().await {
+        error!(
+            "Could not turn on phy for receiving association response: {}",
+            e
+        );
+        data_request
+            .callback
+            .run_associate(Err(Err(Status::PhyError)), mac_pib)
+            .await;
+        return;
+    }
+
+    let response = loop {
+        match embassy_futures::select::select(phy.wait(), &mut on_delay).await {
+            Either::First(Ok(processing_context)) => match phy.process(processing_context).await {
+                Ok(Some(mut received_message)) => {
+                    let Some(frame) = mac_state.deserialize_frame(&mut received_message.data)
+                    else {
+                        trace!("Received a frame that can't be deserialized");
+                        continue;
+                    };
+
+                    trace!("Received a frame in the data request routine: {:?}", frame);
+
+                    if !filter_frame(&frame) {
+                        // Frame not for us
+                        continue;
+                    }
+
+                    let FrameContent::Command(Command::AssociationResponse(
+                        assoc_short_address,
+                        association_status,
+                    )) = frame.content
+                    else {
+                        warn!("Received something other than the expected AssociationResponse");
+                        continue;
+                    };
+
+                    if frame.header.ack_request {
+                        send_ack(
+                            phy,
+                            mac_pib,
+                            mac_state,
+                            received_message.timestamp,
+                            frame.header.seq,
+                            false,
+                        )
+                        .await;
+                    }
+
+                    break Ok(AssociateConfirm {
+                        assoc_short_address,
+                        status: Ok(association_status),
+                        security_info: SecurityInfo::new_none_security(),
+                    });
+                }
+                Ok(None) => {
+                    continue;
+                }
+                Err(e) => {
+                    error!("Could not process phy: {}", e);
+                    break Err(Err(Status::PhyError));
+                }
+            },
+            Either::First(Err(e)) => {
+                error!("Could not wait on phy: {}", e);
+                break Err(Err(Status::PhyError));
+            }
+            Either::Second(()) => {
+                // Timeout
+                break Err(Err(Status::NoData));
+            }
+        }
+    };
+
+    if let Err(e) = phy.stop_receive().await {
+        error!(
+            "Could not turn off phy for receiving association response: {}",
+            e
+        );
+        data_request
+            .callback
+            .run_associate(Err(Err(Status::PhyError)), mac_pib)
+            .await;
+        return;
+    }
+
+    data_request.callback.run_associate(response, mac_pib).await;
 }
 
 async fn perform_scan_action(
@@ -353,7 +851,7 @@ async fn perform_scan_action(
                             )
                             .await
                         {
-                            Ok(SendResult::Success(_)) => {
+                            Ok(SendResult::Success(_, _)) => {
                                 // Cool, continue
                             }
                             Ok(SendResult::ChannelAccessFailure) => {
@@ -494,7 +992,7 @@ async fn send_beacon(
         )
         .await
     {
-        Ok(SendResult::Success(send_time)) => send_time,
+        Ok(SendResult::Success(send_time, _)) => send_time,
         Ok(SendResult::ChannelAccessFailure) => {
             warn!("Could not send beacon due to channel access failure");
             return;
@@ -537,17 +1035,38 @@ async fn send_beacon(
         }
     }
 
-    mac_pib.beacon_tx_time = send_time / phy.symbol_duration();
+    mac_pib.beacon_tx_time = send_time / phy.symbol_period();
 }
 
 enum RadioEvent<P: Phy> {
     Error,
     BeaconRequested,
-    OwnSuperframeStart { start_time: Instant },
-    OwnSuperframeStartMissed { start_time: Instant },
+    OwnSuperframeStart {
+        start_time: Instant,
+    },
+    OwnSuperframeStartMissed {
+        start_time: Instant,
+    },
     OwnSuperframeEnd,
-    PhyWaitDone { context: P::ProcessingContext },
+    PhyWaitDone {
+        context: P::ProcessingContext,
+    },
     ScanAction(ScanAction),
+    SendScheduledIndependentDataRequest,
+    SendAck {
+        /// The time the message we're acking was received
+        receive_time: Instant,
+        /// The sequence number of the received message
+        seq: u8,
+        /// True if the frame pending bit should be set
+        frame_pending: bool,
+    },
+    SendPendingData {
+        /// The time at which we received the data request
+        request_receive_time: Instant,
+        /// The address of the requester
+        device_address: DeviceAddress,
+    },
 }
 
 async fn wait_for_own_superframe_start<P: Phy>(
@@ -555,7 +1074,7 @@ async fn wait_for_own_superframe_start<P: Phy>(
     mac_state: &MacState<'_>,
     current_time: Instant,
     current_time_symbols: i64,
-    symbol_duration: Duration,
+    symbol_period: Duration,
     mut delay: impl DelayNsExt,
 ) -> RadioEvent<P> {
     // Calculate if we have a timeout and for how long
@@ -570,7 +1089,7 @@ async fn wait_for_own_superframe_start<P: Phy>(
         (Some(bi), BeaconMode::OnAutonomous) => {
             let next_start_time_symbols = mac_pib.beacon_tx_time + bi.get() as i64;
             let timeout_symbols = next_start_time_symbols - current_time_symbols;
-            Some(timeout_symbols * symbol_duration)
+            Some(timeout_symbols * symbol_period)
         }
         (Some(_), BeaconMode::OnTracking { .. }) => {
             // This beacon tracks another beacon, so will be done in response to a tracked beacon event
@@ -623,7 +1142,7 @@ async fn wait_for_own_super_frame_end<P: Phy>(
     mac_pib: &MacPib,
     current_time_symbols: i64,
     mut delay: impl DelayNsExt,
-    symbol_duration: Duration,
+    symbol_period: Duration,
 ) -> RadioEvent<P> {
     match (
         mac_state.own_superframe_active,
@@ -633,7 +1152,7 @@ async fn wait_for_own_super_frame_end<P: Phy>(
         (true, Some(superframe_duration)) => {
             let superframe_end_time = mac_pib.beacon_tx_time + superframe_duration.get() as i64;
             let duration_to_go = superframe_end_time - current_time_symbols;
-            delay.delay_duration(duration_to_go * symbol_duration).await;
+            delay.delay_duration(duration_to_go * symbol_period).await;
             RadioEvent::OwnSuperframeEnd
         }
         (false, _) => core::future::pending().await,
@@ -654,38 +1173,77 @@ async fn wait_for_channel_scan_action<P: Phy>(
     }
 }
 
-async fn process_message<P: Phy>(
+async fn wait_for_independent_data_request<P: Phy>(
+    mac_state: &MacState<'_>,
+    current_time: Instant,
+    mut delay: impl DelayNsExt,
+) -> RadioEvent<P> {
+    match mac_state
+        .message_scheduler
+        .get_scheduled_independent_data_request()
+    {
+        Some(ScheduledDataRequest {
+            mode:
+                DataRequestMode::Independent {
+                    timestamp: Some(send_time),
+                },
+            ..
+        }) => {
+            delay
+                .delay_duration(
+                    send_time.duration_since(current_time) - DATA_REQUEST_PLANNING_HEADROOM,
+                )
+                .await;
+            RadioEvent::SendScheduledIndependentDataRequest
+        }
+        Some(ScheduledDataRequest {
+            mode: DataRequestMode::Independent { timestamp: None },
+            ..
+        }) => RadioEvent::SendScheduledIndependentDataRequest,
+        Some(_) => todo!(),
+        None => core::future::pending().await,
+    }
+}
+
+async fn process_message<'a, P: Phy>(
     mut message: ReceivedMessage,
-    mac_state: &mut MacState<'_>,
+    mac_state: &mut MacState<'a>,
     mac_pib: &MacPib,
-    mac_handler: &MacHandler<'_>,
-) -> Option<RadioEvent<P>> {
+    mac_handler: &MacHandler<'a>,
+    indirect_indications: Pin<&mut IndirectIndicationCollection<'a>>,
+    symbol_period: Duration,
+    next_events: &mut arraydeque::ArrayDeque<RadioEvent<P>, 4>,
+) {
     let Some(frame) = mac_state.deserialize_frame(&mut message.data) else {
         trace!("Received a frame that could not be deserialized");
-        return None;
+        return;
     };
 
     trace!("Received a frame: {:?}", frame);
 
     // Now decide what to do with the frame...
 
-    // TODO: Filtering as in 5.1.6.2
+    if !filter_frame(&frame) {
+        // Frame not for us
+        return;
+    }
 
     if mac_state.current_scan_process.is_some() {
         // During a scan, all non-beacon frames are rejected
         if !matches!(frame.content, FrameContent::Beacon(_)) {
             trace!("Ignoring a beacon");
-            return None;
+            return;
         }
     }
 
     if matches!(frame.content, FrameContent::Command(Command::BeaconRequest)) {
         if mac_state.is_pan_coordinator && mac_pib.beacon_order.is_on_demand() {
             debug!("Got a beacon request to respond to");
-            return Some(RadioEvent::BeaconRequested);
+            next_events.push_back(RadioEvent::BeaconRequested).unwrap();
+            return;
         } else {
             trace!("Ignoring a beacon request");
-            return None;
+            return;
         }
     }
 
@@ -703,7 +1261,76 @@ async fn process_message<P: Phy>(
                 mac_handler,
             )
             .await;
+
+        return;
     }
 
-    None
+    let frame_pending = match frame.content {
+        FrameContent::Command(Command::AssociationRequest(capability_information)) => {
+            match frame.header.source {
+                Some(Address::Extended(_, device_address)) => {
+                    mlme_associate::process_received_associate_request(
+                        mac_handler,
+                        mac_pib,
+                        indirect_indications,
+                        device_address,
+                        capability_information,
+                        message.timestamp,
+                        symbol_period,
+                    )
+                    .await
+                }
+                _ => warn!(
+                    "Association request came from frame without correct source field. Ignored"
+                ),
+            }
+
+            false
+        }
+        FrameContent::Command(Command::DataRequest) => {
+            if let Some(source) = frame.header.source {
+                next_events
+                    .push_back(RadioEvent::SendPendingData {
+                        request_receive_time: message.timestamp,
+                        device_address: source.into(),
+                    })
+                    .unwrap();
+
+                mac_state.message_scheduler.has_pending_data(source.into())
+            } else {
+                warn!("Got a datarequest without source address. Ignored");
+                false
+            }
+        }
+        content => {
+            warn!(
+                "Received frame has content we don't yet process: {}",
+                content
+            );
+            false
+        }
+    };
+
+    // Filtering has been done, so we know this is meant for us.
+    // If it needs to be acked, we should do it now.
+    // TODO: Look at the exact rules, because this is currently likely not correct
+    if frame.header.ack_request {
+        // Push to the front because acks need to processed first
+        next_events
+            .push_front(RadioEvent::SendAck {
+                receive_time: message.timestamp,
+                seq: frame.header.seq,
+                frame_pending,
+            })
+            .unwrap();
+    }
+}
+
+/// Filtering as in 5.1.6.2
+///
+/// If the frame should be processed, this function returns true.
+/// If the frame can be discarded, this function returns false.
+fn filter_frame(_frame: &Frame<'_>) -> bool {
+    // TODO: Actually implement
+    true
 }

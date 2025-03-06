@@ -1,6 +1,8 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 #![allow(async_fn_in_trait)]
 
+use wire::PanId;
+
 use crate::wire::{ExtendedAddress, ShortAddress};
 
 // This must go FIRST so that all the other modules see its macros.
@@ -16,10 +18,32 @@ pub mod sap;
 pub mod time;
 pub mod wire;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DeviceAddress {
     Short(ShortAddress),
     Extended(ExtendedAddress),
+}
+
+impl DeviceAddress {
+    pub fn with_pan(&self, pan_id: PanId) -> wire::Address {
+        match self {
+            DeviceAddress::Short(short_address) => wire::Address::Short(pan_id, *short_address),
+            DeviceAddress::Extended(extended_address) => {
+                wire::Address::Extended(pan_id, *extended_address)
+            }
+        }
+    }
+}
+
+impl From<wire::Address> for DeviceAddress {
+    fn from(value: wire::Address) -> Self {
+        match value {
+            wire::Address::Short(_, short_address) => DeviceAddress::Short(short_address),
+            wire::Address::Extended(_, extended_address) => {
+                DeviceAddress::Extended(extended_address)
+            }
+        }
+    }
 }
 
 /// The existing channel pages as defined in 8.1.2

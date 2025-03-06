@@ -1,6 +1,10 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::{
+    pin::pin,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use async_channel::Receiver;
+use futures::FutureExt;
 use log::trace;
 use lr_wpan_rs::{
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation, SendResult},
@@ -74,7 +78,7 @@ impl Phy for AetherRadio {
         Ok(self.aether().simulation_time().now())
     }
 
-    fn symbol_duration(&self) -> lr_wpan_rs::time::Duration {
+    fn symbol_period(&self) -> lr_wpan_rs::time::Duration {
         lr_wpan_rs::time::Duration::from_ticks(10000)
     }
 
@@ -88,29 +92,64 @@ impl Phy for AetherRadio {
     ) -> Result<SendResult, Self::Error> {
         trace!("Radio send {:?}", self.node_id);
 
-        let mut now = self.simulation_time().now();
-        let send_time = send_time.unwrap_or(now);
-        self.simulation_time()
-            .delay(send_time.duration_since(now))
-            .await;
-        now = send_time;
+        if let Some(send_time) = send_time {
+            self.simulation_time().delay_until(send_time).await;
+        }
+
+        let now = self.simulation_time().now();
+
+        trace!("Radio send {:?} at: {}", self.node_id, now);
 
         // TODO: Handle more than just data
         let channel = self.local_pib.current_channel;
         self.aether().send(AirPacket::new(data, now, channel));
 
-        match continuation {
-            SendContinuation::Idle => {}
-            SendContinuation::WaitForResponse { .. } => todo!(),
-            SendContinuation::ReceiveContinuous => self.start_receive().await?,
-        }
+        let response = match continuation {
+            SendContinuation::Idle => None,
+            SendContinuation::WaitForResponse {
+                turnaround_time,
+                timeout,
+            } => {
+                let receive_start_time = self.simulation_time().delay(turnaround_time).await;
+                trace!("Wait for response start at: {}", receive_start_time);
+                self.start_receive().await?;
+
+                let mut timeout = pin!(self.simulation_time().delay(timeout).fuse());
+
+                let response = loop {
+                    futures::select! {
+                        _ = &mut timeout => {
+                            break None;
+                        }
+                        processing_context = self.wait().fuse() => {
+                            match self.process(processing_context?).await? {
+                                Some(received_message) => break Some(received_message),
+                                None => continue,
+                            }
+                        }
+                    }
+                };
+
+                self.stop_receive().await?;
+
+                response
+            }
+            SendContinuation::ReceiveContinuous => {
+                self.start_receive().await?;
+                None
+            }
+        };
 
         // TODO: Handle congestion
-        Ok(SendResult::Success(now))
+        Ok(SendResult::Success(now, response))
     }
 
     async fn start_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio start_receive {:?}", self.node_id);
+        trace!(
+            "Radio start_receive {:?} at: {}",
+            self.node_id,
+            self.simulation_time().now(),
+        );
 
         self.with_node(|node| {
             node.rx_enable = true;
@@ -120,7 +159,11 @@ impl Phy for AetherRadio {
     }
 
     async fn stop_receive(&mut self) -> Result<(), Self::Error> {
-        trace!("Radio stop_receive {:?}", self.node_id);
+        trace!(
+            "Radio stop_receive {:?} at: {}",
+            self.node_id,
+            self.simulation_time().now(),
+        );
 
         self.with_node(|node| {
             node.rx_enable = false;
@@ -149,9 +192,8 @@ impl Phy for AetherRadio {
                 page: lr_wpan_rs::ChannelPage::Uwb,
             };
 
-            let now = self.simulation_time().now();
             self.simulation_time()
-                .delay(msg.timestamp.duration_since(now))
+                .delay_until_at_least(msg.timestamp)
                 .await;
 
             return Ok(msg);
@@ -181,8 +223,8 @@ impl Phy for AetherRadio {
         Ok(res)
     }
 
-    async fn get_phy_pib(&mut self) -> Result<&PhyPib, Self::Error> {
-        Ok(&self.local_pib)
+    fn get_phy_pib(&mut self) -> &PhyPib {
+        &self.local_pib
     }
 }
 

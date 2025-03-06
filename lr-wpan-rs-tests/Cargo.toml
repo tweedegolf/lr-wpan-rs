@@ -20,3 +20,7 @@ futures = { version = "0.3.31", default-features = false, features = ["async-awa
 test-log = "0.2.16"
 pretty_assertions = "1.4.1"
 futures-test = "0.3.31"
+
+[features]
+# Enable to let the simulated time run at roughly realtime speed
+realtime = []

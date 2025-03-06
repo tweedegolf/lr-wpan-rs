@@ -40,13 +40,28 @@ impl SimulationTime {
         Instant::from_ticks(now_ticks)
     }
 
-    pub async fn delay(&'static self, duration: Duration) {
+    /// Returns the end time
+    pub async fn delay(&'static self, duration: Duration) -> Instant {
         if duration.ticks().is_negative() {
             panic!("Cannot delay a negative amount of time: {}", duration);
         }
 
         let end_time = self.now() + duration;
 
+        self.delay_until(end_time).await;
+
+        end_time
+    }
+
+    pub async fn delay_until(&'static self, end_time: Instant) {
+        if end_time < self.now() {
+            panic!("Cannot delay until a time that has already passed");
+        }
+
+        self.delay_until_at_least(end_time).await
+    }
+
+    pub async fn delay_until_at_least(&'static self, end_time: Instant) {
         self.delay_waits
             .wait_for_value(|| {
                 if self.now() >= end_time {
@@ -75,11 +90,13 @@ impl SimulationTime {
         let next_time = self.next_smallest_end_time.swap(u64::MAX, Ordering::SeqCst);
 
         if next_time == u64::MAX {
-            // Nothing has set the delay, so we're probably not ready to move the time yet
-            return;
+            // Nothing has set the delay
+            panic!("Trying to tick time along, but nothing is awaiting time or anything else");
         }
 
-        self.now_ticks.store(next_time, Ordering::SeqCst);
+        let _prev_now = self.now_ticks.swap(next_time, Ordering::SeqCst);
+        #[cfg(feature = "realtime")]
+        std::thread::sleep(Duration::from_ticks((next_time - _prev_now) as i64).into_std());
 
         self.delay_waits.wake_all();
 

@@ -24,7 +24,7 @@ pub trait Phy {
     async fn get_instant(&mut self) -> Result<Instant, Self::Error>;
 
     /// Get the amount of time each symbol takes.
-    fn symbol_duration(&self) -> Duration;
+    fn symbol_period(&self) -> Duration;
 
     /// Send some data.
     ///
@@ -83,12 +83,15 @@ pub trait Phy {
         f: impl FnOnce(&mut PhyPibWrite) -> U,
     ) -> Result<U, Self::Error>;
     /// Get all the PIB values available for reading
-    async fn get_phy_pib(&mut self) -> Result<&PhyPib, Self::Error>;
+    fn get_phy_pib(&mut self) -> &PhyPib;
 }
 
 pub enum SendResult {
-    /// The message has been sent successfully at the given time
-    Success(Instant),
+    /// The message has been sent successfully at the given time.
+    ///
+    /// If the [SendContinuation::WaitForResponse] was used, the response message, if received, is also passed back.
+    /// Otherwise is must always be None.
+    Success(Instant, Option<ReceivedMessage>),
     /// CSMA-CA was used and no suitable time to send the message was found
     ChannelAccessFailure,
 }
