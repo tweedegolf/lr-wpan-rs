@@ -164,6 +164,8 @@ pub async fn process_associate_request<'a>(
     mac_state
         .message_scheduler
         .schedule_data_request(ScheduledDataRequest {
+            // TODO: When tracking a beacon, this should happen in the superframe of the beacon when the beacon has a pending address set to us.
+            // TODO: If after macResponseWaitTime that still hasn't happened, we need to give up
             mode: DataRequestMode::Independent {
                 timestamp: Some(
                     ack_timestamp
@@ -181,7 +183,23 @@ pub async fn process_associate_request<'a>(
 pub async fn association_data_request_callback(
     responder: RequestResponder<'_, AssociateRequest>,
     associate_confirm: Result<AssociateConfirm, Result<AssociationStatus, Status>>,
+    mac_pib: &mut MacPib,
 ) {
+    match associate_confirm {
+        Ok(AssociateConfirm {
+            assoc_short_address,
+            status: Ok(AssociationStatus::Successful),
+            security_info: _,
+        }) => {
+            // Association was sucessful
+            mac_pib.short_address = assoc_short_address;
+        }
+        _ => {
+            // Association failed
+            mac_pib.pan_id = PanId::broadcast();
+        }
+    }
+
     responder.respond(match associate_confirm {
         Ok(confirm) => confirm,
         Err(status) => AssociateConfirm {

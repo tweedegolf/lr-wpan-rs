@@ -6,6 +6,7 @@ use lr_wpan_rs::{
     pib::PibValue,
     sap::{
         associate::{AssociateIndication, AssociateRequest, AssociateResponse},
+        get::GetRequest,
         reset::ResetRequest,
         scan::ScanRequest,
         set::SetRequest,
@@ -15,7 +16,7 @@ use lr_wpan_rs::{
     wire::{
         beacon::{BeaconOrder, SuperframeOrder},
         command::{AssociationStatus, CapabilityInformation},
-        PanId, ShortAddress,
+        ExtendedAddress, PanId, ShortAddress,
     },
     ChannelPage,
 };
@@ -95,6 +96,53 @@ fn associate() {
         // Now assert we got the answer we expect
         assert_eq!(associate_confirm.status, Ok(AssociationStatus::Successful));
         assert_eq!(associate_confirm.assoc_short_address, ShortAddress(1));
+
+        // Assert the pib is as expected
+        assert_eq!(
+            device
+                .request(GetRequest {
+                    pib_attribute: PibValue::MAC_SHORT_ADDRESS
+                })
+                .await
+                .value,
+            PibValue::MacShortAddress(ShortAddress(1))
+        );
+        assert_eq!(
+            device
+                .request(GetRequest {
+                    pib_attribute: PibValue::MAC_COORD_SHORT_ADDRESS
+                })
+                .await
+                .value,
+            PibValue::MacCoordShortAddress(ShortAddress(0))
+        );
+        assert_eq!(
+            device
+                .request(GetRequest {
+                    pib_attribute: PibValue::MAC_COORD_EXTENDED_ADDRESS
+                })
+                .await
+                .value,
+            PibValue::MacCoordExtendedAddress(ExtendedAddress::broadcast())
+        );
+        assert_eq!(
+            device
+                .request(GetRequest {
+                    pib_attribute: PibValue::PHY_CURRENT_CHANNEL
+                })
+                .await
+                .value,
+            PibValue::PhyCurrentChannel(0)
+        );
+        assert_eq!(
+            device
+                .request(GetRequest {
+                    pib_attribute: PibValue::PHY_CURRENT_PAGE
+                })
+                .await
+                .value,
+            PibValue::PhyCurrentPage(ChannelPage::Mhz868_915_2450)
+        );
     });
 
     runner.run();

@@ -54,12 +54,14 @@ impl DataRequestCallback<'_> {
     pub async fn run_associate(
         self,
         associate_confirm: Result<AssociateConfirm, Result<AssociationStatus, Status>>,
+        mac_pib: &mut MacPib,
     ) {
         match self {
             DataRequestCallback::AssociationProcedure(request_responder) => {
                 super::mlme_associate::association_data_request_callback(
                     request_responder,
                     associate_confirm,
+                    mac_pib,
                 )
                 .await;
             }

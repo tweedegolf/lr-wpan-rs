@@ -647,7 +647,7 @@ async fn perform_data_request(
             warn!("Could not send the data request: ChannelAccessFailure");
             data_request
                 .callback
-                .run_associate(Err(Err(Status::ChannelAccessFailure)))
+                .run_associate(Err(Err(Status::ChannelAccessFailure)), mac_pib)
                 .await;
             return;
         }
@@ -655,7 +655,7 @@ async fn perform_data_request(
             error!("Could not send the data request: {}", e);
             data_request
                 .callback
-                .run_associate(Err(Err(Status::PhyError)))
+                .run_associate(Err(Err(Status::PhyError)), mac_pib)
                 .await;
             return;
         }
@@ -669,7 +669,7 @@ async fn perform_data_request(
         trace!("No data available at the coordinator");
         data_request
             .callback
-            .run_associate(Err(Err(Status::NoData)))
+            .run_associate(Err(Err(Status::NoData)), mac_pib)
             .await;
         return;
     }
@@ -688,7 +688,7 @@ async fn perform_data_request(
         );
         data_request
             .callback
-            .run_associate(Err(Err(Status::PhyError)))
+            .run_associate(Err(Err(Status::PhyError)), mac_pib)
             .await;
         return;
     }
@@ -763,12 +763,12 @@ async fn perform_data_request(
         );
         data_request
             .callback
-            .run_associate(Err(Err(Status::PhyError)))
+            .run_associate(Err(Err(Status::PhyError)), mac_pib)
             .await;
         return;
     }
 
-    data_request.callback.run_associate(response).await;
+    data_request.callback.run_associate(response, mac_pib).await;
 }
 
 async fn perform_scan_action(
