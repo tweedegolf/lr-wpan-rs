@@ -2,7 +2,12 @@ use super::{commander::RequestResponder, state::MacState};
 use crate::{
     phy::{Phy, SendResult},
     pib::MacPib,
-    sap::{associate::AssociateRequest, start::StartRequest},
+    sap::{
+        associate::{AssociateConfirm, AssociateRequest},
+        start::StartRequest,
+        Status,
+    },
+    wire::command::AssociationStatus,
 };
 
 /// A callback that will be ran when a message has been sent.
@@ -38,9 +43,26 @@ pub enum DataRequestCallback<'a> {
 }
 
 impl DataRequestCallback<'_> {
-    pub async fn run(self) {
+    #[expect(unused, reason = "For now")]
+    pub async fn run_data_request(self) {
+        #[expect(clippy::match_single_binding, reason = "For now")]
         match self {
-            DataRequestCallback::AssociationProcedure(_request_responder) => todo!(),
+            _ => panic!("Should only be called on real data request callbacks"),
+        }
+    }
+
+    pub async fn run_associate(
+        self,
+        associate_confirm: Result<AssociateConfirm, Result<AssociationStatus, Status>>,
+    ) {
+        match self {
+            DataRequestCallback::AssociationProcedure(request_responder) => {
+                super::mlme_associate::association_data_request_callback(
+                    request_responder,
+                    associate_confirm,
+                )
+                .await;
+            }
         }
     }
 }

@@ -190,12 +190,14 @@ impl<'a> MessageScheduler<'a> {
         }
     }
 
+    #[expect(unused, reason = "For now")]
     pub fn get_scheduled_superframe_data_request(&self) -> Option<&ScheduledDataRequest<'a>> {
         self.data_requests
             .iter()
             .find(|request| !request.mode.is_independent())
     }
 
+    #[expect(unused, reason = "For now")]
     pub fn take_scheduled_superframe_data_request(&mut self) -> Option<ScheduledDataRequest<'a>> {
         let (index, _) = self
             .data_requests
@@ -231,6 +233,7 @@ pub struct ScheduledMessage<'a> {
 pub struct PendingData {
     pub device: DeviceAddress,
     pub data_value: PendingDataValue,
+    #[expect(unused, reason = "For now")]
     pub registration_time: Instant,
 }
 
@@ -244,12 +247,14 @@ pub enum PendingDataValue {
 pub struct ScheduledDataRequest<'a> {
     pub mode: DataRequestMode,
     pub trigger: DataRequestTrigger,
+    #[expect(unused, reason = "For now")]
     pub used_security_info: SecurityInfo,
     pub callback: DataRequestCallback<'a>,
 }
 
 pub enum DataRequestMode {
     /// The data request shall be sent in the CAP of the superframe
+    #[expect(unused, reason = "For now")]
     InSuperFrame,
     /// The data request shall be sent without regard for beacons at the given timestamp
     Independent {
@@ -271,7 +276,9 @@ impl DataRequestMode {
 
 /// What triggered the sending of this data request?
 pub enum DataRequestTrigger {
+    #[expect(unused, reason = "For now")]
     BeaconPendingDataIndication,
+    #[expect(unused, reason = "For now")]
     MlmePoll,
     Association,
 }

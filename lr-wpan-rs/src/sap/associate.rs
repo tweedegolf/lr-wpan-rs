@@ -119,7 +119,7 @@ pub struct AssociateConfirm {
     /// parameter is set to 0xffff if the association
     /// was unsuccessful.
     pub assoc_short_address: ShortAddress,
-    pub status: Status,
+    pub status: Result<AssociationStatus, Status>,
     pub security_info: SecurityInfo,
 }
 

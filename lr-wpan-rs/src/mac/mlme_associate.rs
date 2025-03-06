@@ -15,7 +15,7 @@ use crate::{
     },
     time::{Duration, Instant},
     wire::{
-        command::{CapabilityInformation, Command},
+        command::{AssociationStatus, CapabilityInformation, Command},
         Address, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
         ShortAddress,
     },
@@ -32,7 +32,7 @@ pub async fn process_associate_request<'a>(
         // The spec doesn't really say what to do in this case...
         responder.respond(AssociateConfirm {
             assoc_short_address: ShortAddress::BROADCAST,
-            status: Status::AlreadyAssociated,
+            status: Err(Status::AlreadyAssociated),
             security_info: SecurityInfo::new_none_security(),
         });
         return;
@@ -53,7 +53,7 @@ pub async fn process_associate_request<'a>(
         );
         responder.respond(AssociateConfirm {
             assoc_short_address: ShortAddress::BROADCAST,
-            status: Status::PhyError,
+            status: Err(Status::PhyError),
             security_info: SecurityInfo::new_none_security(),
         });
         return;
@@ -130,7 +130,7 @@ pub async fn process_associate_request<'a>(
         Ok(SendResult::ChannelAccessFailure) => {
             responder.respond(AssociateConfirm {
                 assoc_short_address: ShortAddress::BROADCAST,
-                status: Status::ChannelAccessFailure,
+                status: Err(Status::ChannelAccessFailure),
                 security_info: SecurityInfo::new_none_security(),
             });
             return;
@@ -139,7 +139,7 @@ pub async fn process_associate_request<'a>(
             error!("Could not send the association request: {}", e);
             responder.respond(AssociateConfirm {
                 assoc_short_address: ShortAddress::BROADCAST,
-                status: Status::PhyError,
+                status: Err(Status::PhyError),
                 security_info: SecurityInfo::new_none_security(),
             });
             return;
@@ -150,7 +150,7 @@ pub async fn process_associate_request<'a>(
     let Some(ack_timestamp) = ack_timestamp else {
         responder.respond(AssociateConfirm {
             assoc_short_address: ShortAddress::BROADCAST,
-            status: Status::NoAck,
+            status: Err(Status::NoAck),
             security_info: SecurityInfo::new_none_security(),
         });
         return;
@@ -176,6 +176,20 @@ pub async fn process_associate_request<'a>(
             used_security_info: responder.request.security_info,
             callback: DataRequestCallback::AssociationProcedure(responder),
         });
+}
+
+pub async fn association_data_request_callback(
+    responder: RequestResponder<'_, AssociateRequest>,
+    associate_confirm: Result<AssociateConfirm, Result<AssociationStatus, Status>>,
+) {
+    responder.respond(match associate_confirm {
+        Ok(confirm) => confirm,
+        Err(status) => AssociateConfirm {
+            assoc_short_address: ShortAddress::BROADCAST,
+            status,
+            security_info: SecurityInfo::new_none_security(),
+        },
+    });
 }
 
 // Received from the radio, not as an MLME request

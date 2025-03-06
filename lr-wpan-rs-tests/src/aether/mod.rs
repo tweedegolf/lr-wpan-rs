@@ -300,7 +300,7 @@ impl AetherInner {
         }
 
         if !at_least_one_received {
-            warn!("Sent message was received by no radio");
+            warn!("Sent message (by {from:?}) was received by no radio");
         }
 
         self.simulation_time.now()

@@ -14,7 +14,7 @@ use lr_wpan_rs::{
     },
     wire::{
         beacon::{BeaconOrder, SuperframeOrder},
-        command::CapabilityInformation,
+        command::{AssociationStatus, CapabilityInformation},
         PanId, ShortAddress,
     },
     ChannelPage,
@@ -93,7 +93,7 @@ fn associate() {
             .await;
 
         // Now assert we got the answer we expect
-        assert_eq!(associate_confirm.status, Status::Success);
+        assert_eq!(associate_confirm.status, Ok(AssociationStatus::Successful));
         assert_eq!(associate_confirm.assoc_short_address, ShortAddress(1));
     });
 
