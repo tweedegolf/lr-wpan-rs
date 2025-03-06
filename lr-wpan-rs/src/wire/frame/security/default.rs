@@ -2,14 +2,14 @@
 //!  to satisfy the type requirements for (de-)serializing frames without providing any security
 
 use ccm::aead::generic_array::{
-    typenum::consts::{U1, U16},
     GenericArray,
+    typenum::consts::{U1, U16},
 };
 use cipher::{Block, BlockCipher, BlockCipherKey, BlockDecrypt, BlockEncrypt, NewBlockCipher};
 
 use super::{
-    auxiliary_security_header::KeyIdentifier, AddressingMode, DeviceDescriptor,
-    DeviceDescriptorLookup, KeyDescriptorLookup,
+    AddressingMode, DeviceDescriptor, DeviceDescriptorLookup, KeyDescriptorLookup,
+    auxiliary_security_header::KeyIdentifier,
 };
 use crate::wire::Address;
 

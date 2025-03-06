@@ -1,16 +1,16 @@
-use super::{commander::RequestResponder, state::MacState, MacHandler};
+use super::{MacHandler, commander::RequestResponder, state::MacState};
 use crate::{
+    ChannelPage,
     consts::BASE_SUPERFRAME_DURATION,
     phy::Phy,
     pib::MacPib,
     sap::{
+        PanDescriptor, SecurityInfo, Status,
         beacon_notify::BeaconNotifyIndication,
         scan::{ScanConfirm, ScanRequest, ScanType},
-        PanDescriptor, SecurityInfo, Status,
     },
     time::{DelayNsExt, Duration, Instant},
     wire::{Frame, FrameContent, PanId},
-    ChannelPage,
 };
 
 pub async fn process_scan_request<'a>(

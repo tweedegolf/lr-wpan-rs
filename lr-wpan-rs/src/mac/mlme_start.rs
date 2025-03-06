@@ -1,7 +1,7 @@
 use super::{
+    MacError,
     commander::RequestResponder,
     state::{BeaconMode, MacState},
-    MacError,
 };
 use crate::{
     consts,
@@ -9,12 +9,12 @@ use crate::{
     phy::{Phy, SendResult},
     pib::MacPib,
     sap::{
-        start::{StartConfirm, StartRequest},
         Status,
+        start::{StartConfirm, StartRequest},
     },
     wire::{
-        beacon::{BeaconOrder, SuperframeOrder},
         ShortAddress,
+        beacon::{BeaconOrder, SuperframeOrder},
     },
 };
 
@@ -45,8 +45,8 @@ pub async fn process_start_request<'a>(
 
     if responder.request.coord_realignment {
         use crate::wire::{
-            command::{Command, CoordinatorRealignmentData},
             Address, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
+            command::{Command, CoordinatorRealignmentData},
         };
         // We need to send a realignment message and only after that change apply the changes.
         // This happens in the callback

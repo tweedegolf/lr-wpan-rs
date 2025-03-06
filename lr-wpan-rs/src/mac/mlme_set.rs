@@ -1,10 +1,10 @@
-use super::{commander::RequestResponder, MacError};
+use super::{MacError, commander::RequestResponder};
 use crate::{
     phy::Phy,
     pib::{MacPibWrite, PibValue},
     sap::{
-        set::{SetConfirm, SetRequest},
         Status,
+        set::{SetConfirm, SetRequest},
     },
 };
 

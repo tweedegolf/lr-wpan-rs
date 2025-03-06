@@ -16,7 +16,7 @@ use super::{beacon::Beacon, command::Command};
 mod frame_control;
 pub mod header;
 pub mod security;
-use byte::{ctx::Bytes, BytesExt, TryRead, TryWrite, LE};
+use byte::{BytesExt, LE, TryRead, TryWrite, ctx::Bytes};
 use ccm::aead::generic_array::typenum::consts::U16;
 use cipher::{BlockCipher, BlockEncrypt, NewBlockCipher};
 use derive_more::Display;
@@ -24,8 +24,8 @@ use header::FrameType;
 pub use header::Header;
 
 use self::security::{
-    default::Unimplemented, DeviceDescriptorLookup, KeyDescriptorLookup, SecurityContext,
-    SecurityError,
+    DeviceDescriptorLookup, KeyDescriptorLookup, SecurityContext, SecurityError,
+    default::Unimplemented,
 };
 
 /// An IEEE 802.15.4 MAC frame
@@ -545,7 +545,7 @@ impl From<EncodeError> for byte::Error {
 #[cfg(test)]
 mod tests {
     use crate::wire::{
-        beacon, command, frame::*, Address, ExtendedAddress, FrameVersion, PanId, ShortAddress,
+        Address, ExtendedAddress, FrameVersion, PanId, ShortAddress, beacon, command, frame::*,
     };
 
     #[test]
@@ -663,7 +663,9 @@ mod tests {
         assert_eq!(len, 13);
         assert_eq!(
             buf[..len],
-            [0x01, 0x88, 0x01, 0x34, 0x12, 0x78, 0x56, 0x21, 0x43, 0xbc, 0x9a, 0xde, 0xf0]
+            [
+                0x01, 0x88, 0x01, 0x34, 0x12, 0x78, 0x56, 0x21, 0x43, 0xbc, 0x9a, 0xde, 0xf0
+            ]
         );
     }
 
@@ -811,25 +813,29 @@ mod tests {
             auxiliary_security_header: None,
         };
 
-        assert!(frame_data
-            .write_with(
-                &mut offset,
-                header,
-                &Some(&mut SecurityContext::no_security()),
-            )
-            .is_err());
+        assert!(
+            frame_data
+                .write_with(
+                    &mut offset,
+                    header,
+                    &Some(&mut SecurityContext::no_security()),
+                )
+                .is_err()
+        );
 
         header.destination = Some(Address::Extended(PanId(0xABCD), ExtendedAddress(0xFF)));
         header.source = None;
         header.source = Some(Address::Extended(PanId(0xABCD), ExtendedAddress(0xFF)));
         offset = 0;
 
-        assert!(frame_data
-            .write_with(
-                &mut offset,
-                header,
-                &Some(&mut SecurityContext::no_security()),
-            )
-            .is_ok());
+        assert!(
+            frame_data
+                .write_with(
+                    &mut offset,
+                    header,
+                    &Some(&mut SecurityContext::no_security()),
+                )
+                .is_ok()
+        );
     }
 }

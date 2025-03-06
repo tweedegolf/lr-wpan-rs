@@ -1,7 +1,7 @@
 [package]
 name = "lr-wpan-rs-tests"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 lr-wpan-rs = { path = "../lr-wpan-rs", features = ["std", "log-04"] }

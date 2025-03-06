@@ -3,9 +3,9 @@ use crate::{
     phy::{Phy, SendResult},
     pib::MacPib,
     sap::{
+        Status,
         associate::{AssociateConfirm, AssociateRequest},
         start::StartRequest,
-        Status,
     },
     wire::command::AssociationStatus,
 };

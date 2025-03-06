@@ -4,7 +4,7 @@
 
 use core::convert::From;
 
-use byte::{check_len, BytesExt, TryRead, TryWrite};
+use byte::{BytesExt, TryRead, TryWrite, check_len};
 
 use super::{ExtendedAddress, ShortAddress};
 

@@ -22,17 +22,17 @@ use start::{StartConfirm, StartRequest};
 use sync::{SyncLossIndication, SyncRequest};
 
 use crate::{
+    ChannelPage,
     allocation::Allocation,
     time::Instant,
     wire::{
+        Address,
         beacon::SuperframeSpecification,
         security::{
             AuxiliarySecurityHeader, KeyIdentifier, KeyIdentifierMode, SecurityControl,
             SecurityError, SecurityLevel,
         },
-        Address,
     },
-    ChannelPage,
 };
 
 pub mod associate;

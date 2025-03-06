@@ -5,9 +5,9 @@ use super::{
     Status,
 };
 use crate::{
+    DeviceAddress,
     time::{Duration, Instant},
     wire::{AddressMode, PanId},
-    DeviceAddress,
 };
 
 /// The MCPS-DATA.request primitive requests the transfer of data to another device.

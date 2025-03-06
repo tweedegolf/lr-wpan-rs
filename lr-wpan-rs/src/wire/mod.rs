@@ -30,8 +30,9 @@ pub mod command;
 pub mod frame;
 
 pub use frame::{
+    DecodeError, FooterMode, Frame, FrameContent, FrameSerDesContext,
     header::{
         Address, AddressMode, ExtendedAddress, FrameType, FrameVersion, Header, PanId, ShortAddress,
     },
-    security, DecodeError, FooterMode, Frame, FrameContent, FrameSerDesContext,
+    security,
 };

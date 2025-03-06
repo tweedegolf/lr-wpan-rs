@@ -1,5 +1,5 @@
 //! This module contains definition of Frame Control field that is defined int 5.2.1.1 section.
-use super::{header::Address, DecodeError};
+use super::{DecodeError, header::Address};
 
 /// Defines the type of a MAC frame
 ///

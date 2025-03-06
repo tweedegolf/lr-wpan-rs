@@ -4,19 +4,19 @@ use core::fmt::{Debug, Display};
 
 pub use dw1000;
 use dw1000::{
-    configs::PulseRepetitionFrequency, AutoDoubleBufferReceiving, Ready, RxConfig, TxConfig,
+    AutoDoubleBufferReceiving, Ready, RxConfig, TxConfig, configs::PulseRepetitionFrequency,
 };
-use embassy_futures::select::{select, Either};
+use embassy_futures::select::{Either, select};
 use embedded_hal::{delay::DelayNs as DelayNsSync, digital::ErrorType, spi::SpiDevice};
 use embedded_hal_async::{delay::DelayNs, digital::Wait};
 use lr_wpan_rs::{
+    ChannelPage,
     phy::{ModulationType, Phy, ReceivedMessage, SendContinuation},
     pib::{
         CcaMode, ChannelDescription, NativePrf, PhyPib, PhyPibWrite, TXPowerTolerance,
         UwbCurrentPulseShape,
     },
     time::{Duration, Instant},
-    ChannelPage,
 };
 #[allow(unused_imports)]
 use micromath::F32Ext;

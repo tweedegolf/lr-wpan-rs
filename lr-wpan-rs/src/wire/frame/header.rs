@@ -4,14 +4,14 @@
 //!
 //! [`Header`]: struct.Header.html
 
-use byte::{check_len, BytesExt, TryRead, TryWrite, LE};
-use cipher::{consts::U16, BlockCipher, NewBlockCipher};
+use byte::{BytesExt, LE, TryRead, TryWrite, check_len};
+use cipher::{BlockCipher, NewBlockCipher, consts::U16};
 
 pub use super::frame_control::{AddressMode, FrameType, FrameVersion};
 use super::{
+    DecodeError, EncodeError,
     frame_control::{mask, offset},
     security::{AuxiliarySecurityHeader, KeyDescriptorLookup, SecurityContext},
-    DecodeError, EncodeError,
 };
 
 /// MAC frame header

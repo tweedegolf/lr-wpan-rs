@@ -45,25 +45,25 @@ use std::{
     io::{Seek, Write},
     path::PathBuf,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc, Mutex, MutexGuard,
+        atomic::{AtomicUsize, Ordering},
     },
 };
 
-use async_channel::{bounded, Sender, TrySendError};
+use async_channel::{Sender, TrySendError, bounded};
 use byte::TryRead;
 use heapless::Vec;
 use log::warn;
 use lr_wpan_rs::{pib::PhyPib, time::Instant, wire::Frame};
 use pcap_file::{
+    DataLink,
     pcapng::{
+        Block, PcapNgReader, PcapNgWriter,
         blocks::{
             enhanced_packet::EnhancedPacketBlock,
             interface_description::{InterfaceDescriptionBlock, InterfaceDescriptionOption},
         },
-        Block, PcapNgReader, PcapNgWriter,
     },
-    DataLink,
 };
 
 mod radio;
@@ -350,18 +350,17 @@ impl AirPacket {
 #[cfg(test)]
 mod tests {
     use byte::TryWrite;
-    use futures::{select, FutureExt};
+    use futures::{FutureExt, select};
     use lr_wpan_rs::{
         phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
         time::Duration,
         wire::{
-            self,
+            self, FooterMode, FrameVersion,
             beacon::{
                 BeaconOrder::BeaconOrder, GuaranteedTimeSlotInformation, PendingAddress,
                 SuperframeOrder,
             },
             security::default::Unimplemented,
-            FooterMode, FrameVersion,
         },
     };
     use pcap_file::pcapng::PcapNgReader;

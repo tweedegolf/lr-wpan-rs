@@ -2,7 +2,7 @@ use super::{
     ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo,
     Status,
 };
-use crate::wire::{command::DisassociationReason, Address, ExtendedAddress};
+use crate::wire::{Address, ExtendedAddress, command::DisassociationReason};
 
 /// The MLME-DISASSOCIATE.request primitive is used by an associated device to notify the coordinator of
 /// its intent to leave the PAN. It is also used by the coordinator to instruct an associated device to leave the

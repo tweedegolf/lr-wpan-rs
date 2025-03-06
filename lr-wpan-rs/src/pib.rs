@@ -1,13 +1,13 @@
 use core::num::{NonZero, NonZeroU32};
 
 use crate::{
+    ChannelPage,
     consts::{MAX_BEACON_PAYLOAD_LENGTH, TURNAROUND_TIME, UNIT_BACKOFF_PERIOD},
     sap::Status,
     wire::{
-        beacon::{BeaconOrder, SuperframeOrder},
         ExtendedAddress, PanId, ShortAddress,
+        beacon::{BeaconOrder, SuperframeOrder},
     },
-    ChannelPage,
 };
 
 #[derive(Debug, Clone)]

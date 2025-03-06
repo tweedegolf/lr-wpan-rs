@@ -1,24 +1,24 @@
 use heapless::Vec;
 use log::info;
 use lr_wpan_rs::{
+    ChannelPage,
     allocation::Allocation,
     mac::MacCommander,
     pib::PibValue,
     sap::{
+        IndicationValue, SecurityInfo,
         associate::{AssociateIndication, AssociateRequest, AssociateResponse},
         get::GetRequest,
         reset::ResetRequest,
         scan::ScanRequest,
         set::SetRequest,
         start::StartRequest,
-        IndicationValue, SecurityInfo,
     },
     wire::{
+        ExtendedAddress, PanId, ShortAddress,
         beacon::{BeaconOrder, SuperframeOrder},
         command::{AssociationStatus, CapabilityInformation},
-        ExtendedAddress, PanId, ShortAddress,
     },
-    ChannelPage,
 };
 
 #[test_log::test]

@@ -1,6 +1,6 @@
 use rand_core::RngCore;
 
-use super::{commander::RequestResponder, state::MacState, MacConfig, MacError};
+use super::{MacConfig, MacError, commander::RequestResponder, state::MacState};
 use crate::{
     consts::MAX_BEACON_PAYLOAD_LENGTH,
     phy::Phy,
@@ -8,8 +8,8 @@ use crate::{
     sap::reset::{ResetConfirm, ResetRequest},
     time::DelayNsExt,
     wire::{
-        beacon::{BeaconOrder, SuperframeOrder},
         ExtendedAddress, PanId, ShortAddress,
+        beacon::{BeaconOrder, SuperframeOrder},
     },
 };
 

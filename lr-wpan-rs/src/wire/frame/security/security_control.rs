@@ -1,6 +1,6 @@
 //! The security control header is described here
 
-use byte::{BytesExt, TryRead, TryWrite, LE};
+use byte::{BytesExt, LE, TryRead, TryWrite};
 
 use crate::wire::DecodeError;
 

@@ -168,16 +168,16 @@ use core::marker::PhantomData;
 pub use auxiliary_security_header::{AuxiliarySecurityHeader, KeyIdentifier, KeySource};
 use byte::BytesExt;
 use ccm::{
-    aead::{
-        generic_array::{
-            typenum::consts::{U13 as CcmU13, U16 as CcmU16, U4, U8},
-            ArrayLength, GenericArray,
-        },
-        AeadInPlace, NewAead,
-    },
     Ccm,
+    aead::{
+        AeadInPlace, NewAead,
+        generic_array::{
+            ArrayLength, GenericArray,
+            typenum::consts::{U4, U8, U13 as CcmU13, U16 as CcmU16},
+        },
+    },
 };
-pub use cipher::{generic_array::typenum::consts::U16, BlockCipher, BlockEncrypt, NewBlockCipher};
+pub use cipher::{BlockCipher, BlockEncrypt, NewBlockCipher, generic_array::typenum::consts::U16};
 pub use security_control::{KeyIdentifierMode, SecurityControl, SecurityLevel};
 
 use self::default::Unimplemented;
@@ -731,13 +731,13 @@ mod tests {
     use aes::Aes128;
 
     use crate::wire::{
+        FooterMode,
         frame::{
             frame_control::*,
             header::*,
             security::{security_control::*, *},
             *,
         },
-        FooterMode,
     };
 
     struct StaticKeyLookup();

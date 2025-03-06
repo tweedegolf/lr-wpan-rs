@@ -2,7 +2,7 @@ use super::{
     ConfirmValue, DynamicRequest, Indication, IndicationValue, Request, RequestValue, SecurityInfo,
     Status,
 };
-use crate::wire::{command::GuaranteedTimeSlotCharacteristics, ShortAddress};
+use crate::wire::{ShortAddress, command::GuaranteedTimeSlotCharacteristics};
 
 /// The MLME-GTS.request primitive allows a device to send a request to the PAN coordinator to allocate a
 /// new GTS or to deallocate an existing GTS. This primitive is also used by the PAN coordinator to initiate a

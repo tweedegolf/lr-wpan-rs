@@ -1,10 +1,10 @@
 use super::{ConfirmValue, DynamicRequest, Request, RequestValue, SecurityInfo, Status};
 use crate::{
-    wire::{
-        beacon::{BeaconOrder, SuperframeOrder},
-        PanId,
-    },
     ChannelPage,
+    wire::{
+        PanId,
+        beacon::{BeaconOrder, SuperframeOrder},
+    },
 };
 
 /// The MLME-START.request primitive is used by the PAN coordinator to initiate a new PAN or to begin

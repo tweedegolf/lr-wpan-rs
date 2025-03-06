@@ -3,20 +3,20 @@ use heapless::Vec;
 use rand_core::RngCore;
 
 use super::{
+    MacConfig,
     callback::{DataRequestCallback, SendCallback},
     mlme_scan::ScanProcess,
-    MacConfig,
 };
 use crate::{
+    DeviceAddress,
     sap::{SecurityInfo, Status},
     time::{DelayNsExt, Instant},
     wire::{
+        FooterMode, FrameSerDesContext, ShortAddress,
         beacon::{GuaranteedTimeSlotInformation, PendingAddress},
         command::AssociationStatus,
-        security::{default::Unimplemented, SecurityContext},
-        FooterMode, FrameSerDesContext, ShortAddress,
+        security::{SecurityContext, default::Unimplemented},
     },
-    DeviceAddress,
 };
 
 pub struct MacState<'a> {

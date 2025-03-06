@@ -1,12 +1,12 @@
 use lr_wpan_rs::{
+    ChannelPage,
     pib::PibValue,
-    sap::{reset::ResetRequest, set::SetRequest, start::StartRequest, SecurityInfo, Status},
+    sap::{SecurityInfo, Status, reset::ResetRequest, set::SetRequest, start::StartRequest},
     time::Duration,
     wire::{
-        beacon::{BeaconOrder, SuperframeOrder},
         FrameType, PanId, ShortAddress,
+        beacon::{BeaconOrder, SuperframeOrder},
     },
-    ChannelPage,
 };
 
 #[test_log::test]

@@ -1,7 +1,7 @@
 use lr_wpan_rs::{
     mac::MacCommander,
     pib::PibValue,
-    sap::{get::GetRequest, set::SetRequest, Status},
+    sap::{Status, get::GetRequest, set::SetRequest},
 };
 
 #[test_log::test]

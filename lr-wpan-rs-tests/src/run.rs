@@ -5,7 +5,7 @@ use lr_wpan_rs::{
     mac::{MacCommander, MacConfig},
     wire::ExtendedAddress,
 };
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng};
 
 use super::aether::Aether;
 use crate::{aether::Coordinate, time::SimulationTime};

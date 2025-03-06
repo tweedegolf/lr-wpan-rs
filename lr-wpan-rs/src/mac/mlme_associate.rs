@@ -10,14 +10,14 @@ use crate::{
     phy::{Phy, SendContinuation, SendResult},
     pib::MacPib,
     sap::{
-        associate::{AssociateConfirm, AssociateIndication, AssociateRequest, AssociateResponse},
         SecurityInfo, Status,
+        associate::{AssociateConfirm, AssociateIndication, AssociateRequest, AssociateResponse},
     },
     time::{Duration, Instant},
     wire::{
-        command::{AssociationStatus, CapabilityInformation, Command},
         Address, ExtendedAddress, Frame, FrameContent, FrameType, FrameVersion, Header, PanId,
         ShortAddress,
+        command::{AssociationStatus, CapabilityInformation, Command},
     },
 };
 
@@ -221,7 +221,9 @@ pub async fn process_received_associate_request<'a>(
     symbol_period: Duration,
 ) {
     if !mac_pib.association_permit {
-        warn!("Received an association request while we don't have the `macAssociationPermit` set to true. Ignoring the request");
+        warn!(
+            "Received an association request while we don't have the `macAssociationPermit` set to true. Ignoring the request"
+        );
         return;
     }
 

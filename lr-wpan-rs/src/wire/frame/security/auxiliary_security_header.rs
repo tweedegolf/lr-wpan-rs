@@ -1,7 +1,7 @@
 //! All auxiliary security header structs and functions
 
-use byte::{BytesExt, TryRead, TryWrite, LE};
-use cipher::{consts::U16, BlockCipher, NewBlockCipher};
+use byte::{BytesExt, LE, TryRead, TryWrite};
+use cipher::{BlockCipher, NewBlockCipher, consts::U16};
 
 use super::{KeyDescriptorLookup, KeyIdentifierMode, SecurityContext, SecurityControl};
 

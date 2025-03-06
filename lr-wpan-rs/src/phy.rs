@@ -1,9 +1,9 @@
 use heapless::Vec;
 
 use crate::{
+    ChannelPage,
     pib::{PhyPib, PhyPibWrite},
     time::{Duration, Instant},
-    ChannelPage,
 };
 
 pub trait Phy {

@@ -3,11 +3,11 @@ use super::{
     ResponseValue, SecurityInfo, Status,
 };
 use crate::{
-    wire::{
-        command::{AssociationStatus, CapabilityInformation},
-        Address, ExtendedAddress, ShortAddress,
-    },
     ChannelPage,
+    wire::{
+        Address, ExtendedAddress, ShortAddress,
+        command::{AssociationStatus, CapabilityInformation},
+    },
 };
 
 /// The MLME-ASSOCIATE.request primitive is used by a device to request an association with a coordinator.

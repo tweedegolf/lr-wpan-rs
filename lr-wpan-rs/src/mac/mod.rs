@@ -1,18 +1,18 @@
 use core::{
     fmt::{Debug, Display},
-    pin::{pin, Pin},
+    pin::{Pin, pin},
 };
 
 use crate::{
+    DeviceAddress,
     phy::{Phy, ReceivedMessage, SendContinuation, SendResult},
     pib::MacPib,
     sap::{
-        associate::AssociateConfirm, scan::ScanType, RequestValue, ResponseValue, SecurityInfo,
-        Status,
+        RequestValue, ResponseValue, SecurityInfo, Status, associate::AssociateConfirm,
+        scan::ScanType,
     },
     time::{DelayNsExt, Duration, Instant},
-    wire::{command::Command, Address, FrameType},
-    DeviceAddress,
+    wire::{Address, FrameType, command::Command},
 };
 
 mod callback;
@@ -27,12 +27,12 @@ mod state;
 
 pub use commander::{IndicationResponder, MacCommander};
 use commander::{IndirectIndicationCollection, MacHandler};
-use embassy_futures::select::{select3, Either, Either3};
+use embassy_futures::select::{Either, Either3, select3};
 use futures::FutureExt;
 use mlme_associate::{process_associate_request, process_associate_response};
 use mlme_get::process_get_request;
 use mlme_reset::process_reset_request;
-use mlme_scan::{process_scan_request, ScanAction};
+use mlme_scan::{ScanAction, process_scan_request};
 use mlme_set::process_set_request;
 use mlme_start::process_start_request;
 use rand_core::RngCore;
@@ -150,7 +150,10 @@ async fn handle_response(
     let current_time = match phy.get_instant().await {
         Ok(current_time) => current_time,
         Err(e) => {
-            error!("Could not get the current time, so we can't process the indication_response_value: {}", e);
+            error!(
+                "Could not get the current time, so we can't process the indication_response_value: {}",
+                e
+            );
             return;
         }
     };

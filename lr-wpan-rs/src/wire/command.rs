@@ -2,12 +2,12 @@
 //!
 //! Work in progress
 
-use byte::{check_len, BytesExt, TryRead, TryWrite};
+use byte::{BytesExt, TryRead, TryWrite, check_len};
 
 use super::{
     frame::{
-        header::{PanId, ShortAddress},
         DecodeError,
+        header::{PanId, ShortAddress},
     },
     utils::OptionalFrom,
 };

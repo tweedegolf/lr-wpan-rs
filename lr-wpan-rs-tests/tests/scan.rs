@@ -1,23 +1,23 @@
 use futures::FutureExt;
 use lr_wpan_rs::{
+    ChannelPage,
     allocation::{Allocated, Allocation},
     mac::MacCommander,
     pib::PibValue,
     sap::{
+        IndicationValue, PanDescriptor, SecurityInfo, Status,
         beacon_notify::BeaconNotifyIndication,
         reset::ResetRequest,
         scan::{ScanConfirm, ScanRequest, ScanType},
         set::SetRequest,
         start::StartRequest,
-        IndicationValue, PanDescriptor, SecurityInfo, Status,
     },
     time::Instant,
     wire::{
+        Address, Frame, FrameContent, PanId, ShortAddress,
         beacon::{BeaconOrder, SuperframeOrder},
         command::Command,
-        Address, Frame, FrameContent, PanId, ShortAddress,
     },
-    ChannelPage,
 };
 
 #[test_log::test]
@@ -308,19 +308,21 @@ async fn perform_scan(
 
     let mut wait = core::pin::pin!(commander.wait_for_indication().fuse());
 
-    let mut request = core::pin::pin!(commander
-        .request_with_allocation(
-            ScanRequest {
-                scan_type,
-                scan_channels: channels.try_into().unwrap(),
-                scan_duration: 14,
-                channel_page: ChannelPage::Uwb,
-                security_info: SecurityInfo::new_none_security(),
-                pan_descriptor_list: Allocation::new(),
-            },
-            vec![None; 16].leak()
-        )
-        .fuse());
+    let mut request = core::pin::pin!(
+        commander
+            .request_with_allocation(
+                ScanRequest {
+                    scan_type,
+                    scan_channels: channels.try_into().unwrap(),
+                    scan_duration: 14,
+                    channel_page: ChannelPage::Uwb,
+                    security_info: SecurityInfo::new_none_security(),
+                    pan_descriptor_list: Allocation::new(),
+                },
+                vec![None; 16].leak()
+            )
+            .fuse()
+    );
 
     let mut beacon_notifications = Vec::new();
 

@@ -4,12 +4,12 @@ use core::{
     task::Poll,
 };
 
-use embassy_futures::join::{join, Join};
+use embassy_futures::join::{Join, join};
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, SendFuture},
 };
-use maitake_sync::{wait_map::Wait, WaitMap};
+use maitake_sync::{WaitMap, wait_map::Wait};
 
 pub struct ReqResp<Request, Response, const N: usize> {
     requests: Channel<CriticalSectionRawMutex, (u32, Request), N>,
