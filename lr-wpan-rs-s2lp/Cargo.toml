@@ -1,0 +1,11 @@
+[package]
+name = "lr-wpan-rs-s2lp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lr-wpan-rs = { path = "../lr-wpan-rs", default-features = false }
+s2lp = { git = "https://github.com/diondokter/s2lp.git" }
+embassy-time = "0.4"
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"

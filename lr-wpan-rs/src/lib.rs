@@ -51,13 +51,14 @@ impl From<wire::Address> for DeviceAddress {
 #[repr(u8)]
 pub enum ChannelPage {
     #[default]
-    Mhz868_915_2450 = 0,
-    Mhz868_915_1 = 1,
-    Mhz868_915_2 = 2,
-    Css = 3,
-    Uwb = 4,
-    Mhz780 = 5,
-    Mhz950 = 6,
+    Mhz868_915_2450 ,
+    Mhz868_915_1,
+    Mhz868_915_2,
+    Css,
+    Uwb,
+    Mhz780,
+    Mhz950,
+    Sun866MhzMode1, // 802.15.4g extension
 }
 
 impl TryFrom<u8> for ChannelPage {
